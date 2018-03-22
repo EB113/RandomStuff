@@ -5,8 +5,9 @@
  */
 package aer;
 
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.SocketException;
+import java.net.InetAddress;
 
 
 /**
@@ -40,6 +41,10 @@ public class ListenerUDP implements Runnable{
                   serverSocket.send(sendPacket);
                }
       }
+
+    ListenerUDP(ActiveRequest table_active, RoutingTable table_route) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
     public void run(){
      System.out.println("Hello");
     } 
