@@ -19,16 +19,25 @@ public class AER {
      */
     public static void main(String argv[]) throws Exception
       {
-         ActiveRequest table_active = new ActiveRequest();
+         //ActiveRequest table_active = new ActiveRequest();
          RoutingTable table_route = new RoutingTable();
           
           
  	 //SchedulerTCP serverTCP=new SchedulerTCP();
-         EmitterUDP EmiUDP=new EmitterUDP(table_active, table_route);
-         ListenerUDP LisUDP=new ListenerUDP(table_active, table_route);
+         EmitterUDP EmiUDP=new EmitterUDP();
+         ListenerUDP LisUDP=new ListenerUDP();
          //Thread listenerTCP=new Thread(serverTCP);
          Thread treadUDP=new Thread(EmiUDP);
          Thread trightUDP=new Thread(LisUDP);
+         
+         
+         trightUDP.start();
+         treadUDP.start();
+         
+         System.out.println("Hello Listener");
+         
+         trightUDP.join();
+         treadUDP.join();
       }
     
 }
