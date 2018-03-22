@@ -9,7 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 /**
- *tomas
+ *
  * @author pedro
  */
 public class AER {
@@ -23,12 +23,12 @@ public class AER {
          RoutingTable table_route = new RoutingTable();
           
           
- 	 SchedulerTCP serverTCP=new SchedulerTCP();
-         UDP serverUDP=new UDP(table_active, table_route);
-         
-         
-         Thread listenerTCP=new Thread(serverTCP);
-         Thread listenerUDP=new Thread(serverUDP);
+ 	 //SchedulerTCP serverTCP=new SchedulerTCP();
+         EmitterUDP EmiUDP=new EmitterUDP(table_active, table_route);
+         ListenerUDP LisUDP=new ListenerUDP(table_active, table_route);
+         //Thread listenerTCP=new Thread(serverTCP);
+         Thread treadUDP=new Thread(EmiUDP);
+         Thread trightUDP=new Thread(LisUDP);
       }
     
 }
