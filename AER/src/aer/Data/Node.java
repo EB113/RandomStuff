@@ -33,6 +33,7 @@ public class Node {
     //Configs
     int difficulty;
     byte[] seq_num;
+    long maxdelta;//time between peer hellos
     
     //Identity
     private byte[]  id;
@@ -44,9 +45,10 @@ public class Node {
     private RequestCache rcache;
     private HitCache     hcache;   
     
-    public Node(int difficulty, int zoneSize, int requestCacheSize, int hitCacheSize) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
+    public Node(int difficulty, int zoneSize, int requestCacheSize, int hitCacheSize, long maxdelta) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
         //Configs
         this.difficulty = difficulty;
+        this.maxdelta   = maxdelta;
         //Node Identity
         genKeyPair();
         //Routing Data
@@ -120,5 +122,10 @@ public class Node {
     //Vale a pena verificar o IPV6????
     public void rmPeerZone(byte[] nodeId) {
         this.topo.removePeer(nodeId);
+    }
+    
+    //GarbageCollect
+    public void gcPeerZone() {
+        this.topo.gcPeer(this.maxdelta);
     }
 }

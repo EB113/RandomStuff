@@ -64,5 +64,12 @@ public class ZoneTopology {
         else return false;
     }
     
+    public void gcPeer(long maxdelta) {
+        long now  = System.currentTimeMillis();
+        
+        this.hmap.forEach((k, v) -> {
+            if(now - v.getTimeStamp()>maxdelta) removePeer(k);
+        });
+    }
     
 }
