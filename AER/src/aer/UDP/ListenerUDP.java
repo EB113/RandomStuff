@@ -18,7 +18,6 @@ import java.net.SocketException;
 public class ListenerUDP implements Runnable{
 
     public ListenerUDP() throws SocketException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
     
     public void run(){

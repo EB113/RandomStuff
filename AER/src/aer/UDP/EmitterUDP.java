@@ -16,7 +16,6 @@ import java.net.SocketException;
 public class EmitterUDP implements Runnable{
 
     public EmitterUDP() throws SocketException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     public void run(){
