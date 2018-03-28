@@ -5,6 +5,11 @@
  */
 package aer;
 
+import aer.Data.Node;
+import aer.TCP.EmitterTCP;
+import aer.TCP.ListenerTCP;
+import aer.UDP.ListenerUDP;
+import aer.UDP.EmitterUDP;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -13,31 +18,50 @@ import java.net.Socket;
  * @author pedro
  */
 public class AER {
-// ola
-    /**
-     * @param args the command line arguments
-     */
+
     public static void main(String argv[]) throws Exception
       {
-         //ActiveRequest table_active = new ActiveRequest();
-         RoutingTable table_route = new RoutingTable();
-          
-          
- 	 //SchedulerTCP serverTCP=new SchedulerTCP();
-         EmitterUDP EmiUDP=new EmitterUDP();
-         ListenerUDP LisUDP=new ListenerUDP();
-         //Thread listenerTCP=new Thread(serverTCP);
-         Thread treadUDP=new Thread(EmiUDP);
-         Thread trightUDP=new Thread(LisUDP);
+         System.out.println("Init Adhoc Node....");
+         //Configs
+         int difficulty         = 1;
+         int zoneSize           = 2;
+         int requestCacheSize   = 5;
+         int hitCacheSize       = 5;
+         
+         // Node Setup
+         Node id = new Node(difficulty, zoneSize, requestCacheSize, hitCacheSize);
+         id.test();
          
          
-         trightUDP.start();
-         treadUDP.start();
          
-         System.out.println("Hello Listener");
+         /*
+ 	 //UDP Thread Object Init + Thread Init
+         EmitterUDP emitterUDP      = new EmitterUDP();
+         ListenerUDP listenerUDP    = new ListenerUDP();
          
-         trightUDP.join();
-         treadUDP.join();
+         Thread t_emitter_UDP       = new Thread(emitterUDP);
+         Thread t_listener_UDP      = new Thread(listenerUDP);
+         
+         //TCP Thread Object Init + Thread Init
+         EmitterTCP emitterTCP      = new EmitterTCP();
+         ListenerTCP listenerTCP    = new ListenerTCP();
+         
+         Thread t_emitter_TCP       = new Thread(emitterTCP);
+         Thread t_listener_TCP      = new Thread(listenerTCP);
+         
+         // TCP + UDP Thread Start
+         t_emitter_UDP.start();
+         t_listener_UDP.start();
+         t_emitter_TCP.start();
+         t_listener_TCP.start();
+         
+         // Thread close Wait
+         t_emitter_UDP.join();
+         t_listener_UDP.join();
+         t_emitter_TCP.join();
+         t_listener_TCP.join();
+         */
+         System.out.println("Close Adhoc Node....");
       }
     
 }

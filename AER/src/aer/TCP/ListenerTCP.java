@@ -3,29 +3,24 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package aer;
+package aer.TCP;
 
-import java.net.DatagramSocket;
 import java.net.SocketException;
-
 
 /**
  *
  * @author pedro
  */
-public class EmitterUDP implements Runnable{
+public class ListenerTCP implements Runnable{
 
-    public EmitterUDP(ActiveRequest table_active, RoutingTable table_route) throws SocketException {
-        
-        DatagramSocket serverSocket = new DatagramSocket(9999);
+    public ListenerTCP() throws SocketException {
        
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    public void run(){
-          System.out.println("Hello");
-    } 
+    @Override
+    public void run() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+    
 }
-
-//tread que vai escrever na tread
-//envia o Hello
