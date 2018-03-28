@@ -48,13 +48,6 @@ public class AER {
          Thread t_emitter_UDP       = new Thread(emitterUDP);
          Thread t_listener_UDP      = new Thread(listenerUDP);
          
-         
-         Thread.sleep(2000);
-         
-         synchronized(watchDogFlag){
-             watchDogFlag.set(false);
-         }
-
          //TCP Thread Object Init + Thread Init
          //EmitterTCP emitterTCP      = new EmitterTCP();
          //ListenerTCP listenerTCP    = new ListenerTCP();
