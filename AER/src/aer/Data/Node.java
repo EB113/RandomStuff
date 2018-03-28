@@ -12,6 +12,9 @@ import static aer.miscelaneous.Crypto.decryptString;
 import static aer.miscelaneous.Crypto.encryptString;
 import static aer.miscelaneous.Crypto.generateSharedSecret;
 import static aer.miscelaneous.Crypto.toHex;
+import java.net.Inet6Address;
+
+import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -29,7 +32,7 @@ import org.bouncycastle.jce.spec.ECParameterSpec;
 public class Node {
     //Configs
     int difficulty;
-    String seq_num;
+    byte[] seq_num;
     
     //Identity
     private byte[]  id;
@@ -105,8 +108,17 @@ public class Node {
             
     void incrSeq(){
 
-        Integer aux = Integer.parseInt(this.seq_num, 16);
+        int aux         = ByteBuffer.wrap(this.seq_num).getInt();
         aux++;
-        this.seq_num = Integer.toHexString(aux);
+        this.seq_num    = ByteBuffer.allocate(4).putInt(aux).array();
+    }
+    
+    public void addPeerZone(byte[] nodeId, Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
+        if(this.topo.compare_seq(nodeId, seq_num)) this.topo.addPeer(nodeId, addr6, rank, hop_dist, seq_num);
+    }
+    
+    //Vale a pena verificar o IPV6????
+    public void rmPeerZone(byte[] nodeId) {
+        this.topo.removePeer(nodeId);
     }
 }

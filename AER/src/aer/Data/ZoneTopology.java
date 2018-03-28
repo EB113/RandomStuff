@@ -10,28 +10,35 @@ package aer.Data;
 import static aer.miscelaneous.Crypto.hexStringToByteArray;
 import java.net.Inet6Address;
 import java.nio.ByteBuffer;
+import java.security.Timestamp;
 import java.util.HashMap;
 
 public class ZoneTopology {
-    
     //Value Class
     class Info {
         Inet6Address    addr6;
         float           rank;
         int             hop_dist;
         byte[]          seq_num;
+        long            timestamp;
         
         Info(Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
             this.addr6      = addr6;
             this.rank       = rank;
             this.hop_dist   = hop_dist;
             this.seq_num    = seq_num;
+            this.timestamp  = System.currentTimeMillis();
         }
         
         public byte[] getSeqNum() {
             return this.seq_num;
         }
+        
+        public long getTimeStamp() {
+            return this.timestamp;
+        }
     }
+    
     HashMap <byte[], Info> hmap;
     int zoneSize;
     
