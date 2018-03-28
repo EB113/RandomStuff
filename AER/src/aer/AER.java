@@ -30,11 +30,9 @@ public class AER {
          
          // Node Setup
          Node id = new Node(difficulty, zoneSize, requestCacheSize, hitCacheSize);
-         id.test();
+         //id.test();
          
          
-         
-         /*
  	 //UDP Thread Object Init + Thread Init
          EmitterUDP emitterUDP      = new EmitterUDP();
          ListenerUDP listenerUDP    = new ListenerUDP();
@@ -43,24 +41,24 @@ public class AER {
          Thread t_listener_UDP      = new Thread(listenerUDP);
          
          //TCP Thread Object Init + Thread Init
-         EmitterTCP emitterTCP      = new EmitterTCP();
-         ListenerTCP listenerTCP    = new ListenerTCP();
+         //EmitterTCP emitterTCP      = new EmitterTCP();
+         //ListenerTCP listenerTCP    = new ListenerTCP();
          
-         Thread t_emitter_TCP       = new Thread(emitterTCP);
-         Thread t_listener_TCP      = new Thread(listenerTCP);
+         //Thread t_emitter_TCP       = new Thread(emitterTCP);
+         //Thread t_listener_TCP      = new Thread(listenerTCP);
          
          // TCP + UDP Thread Start
          t_emitter_UDP.start();
          t_listener_UDP.start();
-         t_emitter_TCP.start();
-         t_listener_TCP.start();
+         //t_emitter_TCP.start();
+         //t_listener_TCP.start();
          
          // Thread close Wait
          t_emitter_UDP.join();
          t_listener_UDP.join();
-         t_emitter_TCP.join();
-         t_listener_TCP.join();
-         */
+         //t_emitter_TCP.join();
+         //t_listener_TCP.join();
+         
          System.out.println("Close Adhoc Node....");
       }
     

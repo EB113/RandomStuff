@@ -9,6 +9,7 @@ package aer.Data;
 
 import static aer.miscelaneous.Crypto.hexStringToByteArray;
 import java.net.Inet6Address;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 
 public class ZoneTopology {
@@ -25,9 +26,13 @@ public class ZoneTopology {
             this.rank       = rank;
             this.hop_dist   = hop_dist;
             this.seq_num    = seq_num;
-        }     
+        }
+        
+        public byte[] getSeqNum() {
+            return this.seq_num;
+        }
     }
-    HashMap hmap;
+    HashMap <byte[], Info> hmap;
     int zoneSize;
     
     public ZoneTopology(int zoneSize) {
@@ -41,6 +46,15 @@ public class ZoneTopology {
     
     public Object removePeer(byte[] nodeId) {
         return this.hmap.remove(nodeId);
+    }
+    
+    public boolean compare_seq(byte[] nodeId, byte[] seq) {
+        //Validar Input etc
+        int new_seq = ByteBuffer.wrap(seq).getInt();
+        int cur_seq = ByteBuffer.wrap(this.hmap.get(nodeId).getSeqNum()).getInt();
+        
+        if(new_seq>cur_seq) return true;
+        else return false;
     }
     
     
