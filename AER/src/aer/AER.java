@@ -75,7 +75,10 @@ public class AER {
          t_listener_UDP.join();
          //t_emitter_TCP.join();
          //t_listener_TCP.join();
-         //t_wd_zone.join(); //Add a way to kill Watchdog Thread!!
+         synchronized(watchDogFlag){
+             watchDogFlag.set(false);
+         }
+         t_wd_zone.join(); //Add a way to kill Watchdog Thread!!
          
          System.out.println("Close Adhoc Node....");
       }
