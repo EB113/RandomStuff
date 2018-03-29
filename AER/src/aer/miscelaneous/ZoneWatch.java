@@ -17,12 +17,12 @@ import java.util.logging.Logger;
  * @author pedro
  */
 public class ZoneWatch implements Runnable{
-    AtomicBoolean flag;
+    Controller control;
     int sleepTime;
     Node node;
     
-    public ZoneWatch(AtomicBoolean flag, Config config, Node node){
-        this.flag       = flag;
+    public ZoneWatch(Controller control, Config config, Node node){
+        this.control    = control;
         this.sleepTime  = config.getWatchDogTimer();
         this.node       = node;
     }
@@ -30,8 +30,8 @@ public class ZoneWatch implements Runnable{
     @Override
     public void run() {
         while(true){
-            synchronized(this.flag){
-                if(this.flag.get()){
+            synchronized(this.control){
+                if(this.control.getWatchDogFlag().get()){
                     synchronized(this.node){
                         this.node.gcPeerZone();
                     }

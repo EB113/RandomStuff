@@ -12,10 +12,10 @@ import aer.TCP.ListenerTCP;
 import aer.UDP.ListenerUDP;
 import aer.UDP.EmitterUDP;
 import aer.miscelaneous.Config;
+import aer.miscelaneous.Controller;
 import aer.miscelaneous.ZoneWatch;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *
@@ -28,13 +28,14 @@ public class AER {
          System.out.println("Init Adhoc Node....");
          
          
-         AtomicBoolean watchDogFlag = new AtomicBoolean(true); //Falg para termino da THread
+         Controller control = new Controller();
          Config config = new Config();
+         
          // Node Setup
          Node id = new Node(config);
          
          //WatchDog
-         ZoneWatch wd_zone = new ZoneWatch(watchDogFlag, config, id);
+         ZoneWatch wd_zone = new ZoneWatch(control, config, id);
          Thread t_wd_zone  = new Thread(wd_zone);
          
  	 //UDP Thread Object Init + Thread Init
@@ -64,8 +65,8 @@ public class AER {
          t_emitter_UDP.join();
          //t_emitter_TCP.join();
          //t_listener_TCP.join();
-         synchronized(watchDogFlag){
-             watchDogFlag.set(false);
+         synchronized(control){
+             control.setWatchDogFlag(false);
          }
          t_wd_zone.join(); //Add a way to kill Watchdog Thread!!
         
