@@ -27,7 +27,6 @@ public class AER {
       {
          System.out.println("Init Adhoc Node....");
          
-         
          Controller control = new Controller();
          Config config = new Config();
          
@@ -40,7 +39,7 @@ public class AER {
          
  	 //UDP Thread Object Init + Thread Init
          ListenerUDP listenerUDP    = new ListenerUDP();
-         EmitterUDP emitterUDP      = new EmitterUDP();
+         EmitterUDP emitterUDP      = new EmitterUDP(control);
          
          Thread t_listener_UDP      = new Thread(listenerUDP);
          Thread t_emitter_UDP       = new Thread(emitterUDP);
@@ -60,14 +59,18 @@ public class AER {
          //t_listener_TCP.start();
          t_wd_zone.start();
          
+         synchronized(control){
+             control.setUDPFlag(false);
+         }
+         synchronized(control){
+             control.setWatchDogFlag(false);
+         }
+         
          // Thread close Wait
          t_listener_UDP.join();
          t_emitter_UDP.join();
          //t_emitter_TCP.join();
          //t_listener_TCP.join();
-         synchronized(control){
-             control.setWatchDogFlag(false);
-         }
          t_wd_zone.join(); //Add a way to kill Watchdog Thread!!
         
          System.out.println("Close Adhoc Node....");

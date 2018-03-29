@@ -34,17 +34,7 @@ public class ListenerUDP implements Runnable{
             ds.receive(dp);
             String str = new String(dp.getData(),0,dp.getLength());
             System.out.println("Mensagem do Emiter foi: "+ str);
-            //int num = Integer.parseInt(str.trim());
-            //System.out.println("Num "+ num);
-            //int result = num * num;
-            String strr = "Hello tmb";
-            byte[] b2 = strr.getBytes();
-            InetAddress ia = InetAddress.getLocalHost();
-            DatagramPacket dp1 = new DatagramPacket(b2, b2.length, ia, dp.getPort());
-            ds.send(dp1);
             
-//    for(int i = 6 ; i < 11; i++)
-//System.out.println("Hello " + i);
         } catch (SocketException ex) {
             Logger.getLogger(ListenerUDP.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
