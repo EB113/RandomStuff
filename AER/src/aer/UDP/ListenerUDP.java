@@ -37,7 +37,7 @@ public class ListenerUDP implements Runnable{
             //int num = Integer.parseInt(str.trim());
             //System.out.println("Num "+ num);
             //int result = num * num;
-            String strr = "Hello";
+            String strr = "Hello tmb";
             byte[] b2 = strr.getBytes();
             InetAddress ia = InetAddress.getLocalHost();
             DatagramPacket dp1 = new DatagramPacket(b2, b2.length, ia, dp.getPort());
