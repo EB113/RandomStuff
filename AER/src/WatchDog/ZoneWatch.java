@@ -34,6 +34,12 @@ public class ZoneWatch implements Runnable{
                     synchronized(this.node){
                         this.node.gcPeerZone();
                     }
+                    synchronized(this.node){
+                        this.node.gcReqCache();
+                    }
+                    synchronized(this.node){
+                        this.node.gcHitCache();
+                    }
                 }else return;
             }
             try {

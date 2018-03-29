@@ -24,18 +24,25 @@ public class AER {
     public static void main(String argv[]) throws Exception
       {
          System.out.println("Init Adhoc Node....");
+         
          //Configs
-         int difficulty         = 1;
-         int zoneSize           = 2;
-         int requestCacheSize   = 5;
-         int hitCacheSize       = 5;
-         long maxdelta          = 60; //Tempo max entre peer hellos
-         int watchDogTimer      = 10; //Tempo de sleep para o WatchDog da tabela ZoneTopology
-         AtomicBoolean watchDogFlag = new AtomicBoolean(true);
-        // Boolean watchDogFlag   = true; //Falg para termino da THread
+         int difficulty             = 1; //Num de zeros msb's no nodeId
+         
+         int zoneSize               = 2; //Tamanho da Zona
+         int requestCacheSize       = 5; //Tamanhp da Cache dos Requests
+         int hitCacheSize           = 5; //Tamanho da Cache dos HIts
+         
+         //size per array still needs to be implemented for limiting per nodeid
+         
+         long zoneTimeDelta         = 60;  //Tempo max entre peer hellos
+         long reqTimeDelta          = 600; //Tempo de vida dos Requests
+         long hitTimeDelta          = 600; //Tempo de vida dos Hit
+         int watchDogTimer          = 10;  //Tempo de sleep para o WatchDog da tabela ZoneTopology
+         
+         AtomicBoolean watchDogFlag = new AtomicBoolean(true); //Falg para termino da THread
          
          // Node Setup
-         Node id = new Node(difficulty, zoneSize, requestCacheSize, hitCacheSize, maxdelta);
+         Node id = new Node(difficulty, zoneSize, requestCacheSize, hitCacheSize, zoneTimeDelta, reqTimeDelta, hitTimeDelta);
          
          //WatchDog
          ZoneWatch wd_zone = new ZoneWatch(watchDogFlag, watchDogTimer, id);
@@ -61,7 +68,6 @@ public class AER {
          //t_emitter_TCP.start();
          //t_listener_TCP.start();
          t_wd_zone.start();
-         
          
          // Thread close Wait
          t_emitter_UDP.join();

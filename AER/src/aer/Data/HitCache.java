@@ -9,6 +9,7 @@ package aer.Data;
 
 import java.net.Inet6Address;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 
@@ -16,45 +17,48 @@ public class HitCache {
     
    //Value Class
     class Info {
-        Inet6Address    addr6;
-        float           rank;
-        int             hop_dist;
-        byte[]          seq_num;
+        byte[]          nodeId_dst;
+        int             hop_count;
+        long            timestamp;
         
-        Info(Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
-            this.addr6      = addr6;
-            this.rank       = rank;
-            this.hop_dist   = hop_dist;
-            this.seq_num    = seq_num;
+        Info(byte[] nodeId_dst, int hop_count) {
+            this.nodeId_dst      = nodeId_dst;
+            this.hop_count       = hop_count;
+            this.timestamp       = System.currentTimeMillis();
         }
         
-        public byte[] getSeqNum() {
-            return this.seq_num;
+        public long getTimeStamp() {
+            return this.timestamp;
         }
     }
-    HashMap <byte[], Info> hmap;
-    int zoneSize;
+    HashMap <byte[], ArrayList<Info>> hmap;
+    int hitCacheSize;
     
-    public HitCache(int zoneSize) {
-       this.zoneSize    = zoneSize;
-       this.hmap        = new HashMap<byte[], Info>();
+    public HitCache(int hitCacheSize) {
+        this.hitCacheSize   = hitCacheSize;
+       this.hmap            = new HashMap<byte[], ArrayList<Info>>();
     }
     
-    public Object addPeer(byte[] nodeId, Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
-        return this.hmap.put(nodeId, new Info(addr6, rank, hop_dist, seq_num));
+    //limiting arraylist size
+    public Object addHit(byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count) {
+        
+        if(this.hmap.containsKey(nodeIdSrc)) {
+            return this.hmap.put(nodeIdSrc, this.hmap.get(nodeIdSrc)).add(new Info(nodeIdDst, hop_count));
+        }
+        return null;
     }
     
-    public Object removePeer(byte[] nodeId) {
+    public Object removeHit(byte[] nodeId) {
         return this.hmap.remove(nodeId);
     }
     
-    public boolean compare_seq(byte[] nodeId, byte[] seq) {
-        //Validar Input etc
-        int new_seq = ByteBuffer.wrap(seq).getInt();
-        int cur_seq = ByteBuffer.wrap(this.hmap.get(nodeId).getSeqNum()).getInt();
+    public void gcHit(long hitTimeDelta) {
+        long now  = System.currentTimeMillis();
         
-        if(new_seq>cur_seq) return true;
-        else return false;
+        this.hmap.forEach((k, v) -> {
+            for(Info i : v) {
+                if(now - i.getTimeStamp()>hitTimeDelta) removeHit(k);
+            }
+        });
     }
-    
 }

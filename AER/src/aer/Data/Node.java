@@ -31,12 +31,14 @@ import org.bouncycastle.jce.spec.ECParameterSpec;
 
 public class Node {
     //Configs
-    int difficulty;
-    byte[] seq_num;
-    long maxdelta;//time between peer hellos
+    private int     difficulty;
+    private byte[]  seq_num;
+    private long    zoneTimeDelta;  
+    private long    reqTimeDelta;
+    private long    hitTimeDelta;
     
     //Identity
-    private byte[]  id;
+    private byte[]      id;
     private PrivateKey  privk;
     private PublicKey   pubk;
     
@@ -45,10 +47,12 @@ public class Node {
     private RequestCache rcache;
     private HitCache     hcache;   
     
-    public Node(int difficulty, int zoneSize, int requestCacheSize, int hitCacheSize, long maxdelta) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
+    public Node(int difficulty, int zoneSize, int requestCacheSize, int hitCacheSize, long zoneTimeDelta, long reqTimeDelta, long hitTimeDelta) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
         //Configs
-        this.difficulty = difficulty;
-        this.maxdelta   = maxdelta;
+        this.difficulty     = difficulty;
+        this.zoneTimeDelta  = zoneTimeDelta;
+        this.reqTimeDelta   = reqTimeDelta;
+        this.hitTimeDelta   = hitTimeDelta;
         //Node Identity
         genKeyPair();
         //Routing Data
@@ -104,12 +108,12 @@ public class Node {
         
         System.out.println(decrypt(k1, encrypt(k2, "ola")));
     }
+    
     //
-    //CODE RELATED TO ROUTING DATA
+    //CODE RELATED TO MAINTAINING ROUTING DATA
     //
             
     void incrSeq(){
-
         int aux         = ByteBuffer.wrap(this.seq_num).getInt();
         aux++;
         this.seq_num    = ByteBuffer.allocate(4).putInt(aux).array();
@@ -126,6 +130,23 @@ public class Node {
     
     //GarbageCollect
     public void gcPeerZone() {
-        this.topo.gcPeer(this.maxdelta);
+        this.topo.gcPeer(this.zoneTimeDelta);
+    }
+    
+    //GarbageCollect
+    public void gcHitCache() {
+        this.hcache.gcHit(this.hitTimeDelta);
+    }
+    
+    //GarbageCollect
+    public void gcReqCache() {
+        this.rcache.gcReq(this.reqTimeDelta);
+    }
+    
+    //TODO
+    public void getRoute() {
+            //Search for Hit
+            
+            //Request on Topology
     }
 }
