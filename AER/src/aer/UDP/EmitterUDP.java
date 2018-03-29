@@ -10,6 +10,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,42 +20,52 @@ import java.util.logging.Logger;
  * @author pedro
  */
 public class EmitterUDP implements Runnable{
-
+    DatagramSocket ds;
+    String i;
+    byte[] b;
+    InetAddress ia;
+    DatagramPacket dp;
+    byte[] b1;
+    DatagramPacket dp1;
+    String str;
     public EmitterUDP() throws SocketException {
-    }
-
+    }    
+    
+    @Override
     public void run(){
         
-        DatagramSocket ds;
+        while(true){
         try {
-            ds = new DatagramSocket();
-            String i = "Hello";
-            byte[] b = i.getBytes();
+            this.ds = new DatagramSocket();
+            this.i = "Hello";
+            this.b = i.getBytes();
         
-            InetAddress ia = InetAddress.getLocalHost();
-            DatagramPacket dp = new DatagramPacket(b, b.length, ia, 9999);
-            ds.send(dp);
+            this.ia = InetAddress.getLocalHost();
+            this.dp = new DatagramPacket(b, b.length, ia, 9999);
+            this.ds.send(dp);
         
-            byte[] b1 = new byte[1024];
-            DatagramPacket dp1 = new DatagramPacket(b1, b1.length);
-            ds.receive(dp1);
+            this.b1 = new byte[1024];
+            this.dp1 = new DatagramPacket(b1, b1.length);
+            this.ds.receive(dp1);
         
-            String str = new String(dp1.getData(),0,dp1.getLength());
+            this.str = new String(dp1.getData(),0,dp1.getLength());
             System.out.println("Mensagem do Listener foi: "+ str);
-            
+            TimeUnit.SECONDS.sleep(5);
+
         } catch (SocketException ex) {
             Logger.getLogger(EmitterUDP.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
             Logger.getLogger(EmitterUDP.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(EmitterUDP.class.getName()).log(Level.SEVERE, null, ex);
         }
        
-        
-
 
 
 // for(int i = 0 ; i < 6; i++)
        //   System.out.println("Hello " + i);
     } 
+    }
 }
 
 //tread que vai escrever na tread
