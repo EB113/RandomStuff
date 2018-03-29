@@ -7,6 +7,7 @@ package aer.Data;
 
 // Class que contem informacao relativa a Request que obteram resposta com successo com origem no host ou outsourced.
 
+import aer.miscelaneous.Config;
 import java.net.Inet6Address;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -32,32 +33,65 @@ public class HitCache {
         }
     }
     HashMap <byte[], ArrayList<Info>> hmap;
-    int hitCacheSize;
+    Config config;
     
-    public HitCache(int hitCacheSize) {
-        this.hitCacheSize   = hitCacheSize;
-       this.hmap            = new HashMap<byte[], ArrayList<Info>>();
+    public HitCache(Config config) {
+       this.config   = config;
+       this.hmap     = new HashMap<byte[], ArrayList<Info>>();
+    }
+    
+    public void removeHit(byte[] nodeId) {
+        this.hmap.remove(nodeId);
+        return;
     }
     
     //limiting arraylist size
-    public Object addHit(byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count) {
+    public void addHit(byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count) {
         
         if(this.hmap.containsKey(nodeIdSrc)) {
-            return this.hmap.put(nodeIdSrc, this.hmap.get(nodeIdSrc)).add(new Info(nodeIdDst, hop_count));
+            ArrayList<Info> tmpArray    = this.hmap.get(nodeIdSrc);
+            Info info                   = new Info(nodeIdDst, hop_count);
+            long minTimeStamp           = tmpArray.get(0).getTimeStamp();
+            int counter                 = 0;
+            int index                   = 0;
+            
+            if(tmpArray.size() >= config.getHitArraySize()) {
+                for(Info i : tmpArray) {
+                    long curTimeStamp = i.getTimeStamp();
+                    if(curTimeStamp < minTimeStamp){
+                        minTimeStamp = curTimeStamp;
+                        index = counter;
+                    }
+                    counter++;
+                }
+                
+                tmpArray.set(index, info);
+                
+            }
+            else {
+                tmpArray.add(info);
+                this.hmap.put(nodeIdSrc, tmpArray);
+            }
+            
+        }else{
+            if(this.hmap.size() < config.getHitCacheSize()) {
+                ArrayList<Info> tmpArray = new ArrayList<>();
+                Info info = new Info(nodeIdDst, hop_count);
+                
+                tmpArray.add(info);
+                
+                this.hmap.put(nodeIdSrc, tmpArray);
+                return;
+            }
         }
-        return null;
     }
     
-    public Object removeHit(byte[] nodeId) {
-        return this.hmap.remove(nodeId);
-    }
-    
-    public void gcHit(long hitTimeDelta) {
+    public void gcHit() {
         long now  = System.currentTimeMillis();
         
         this.hmap.forEach((k, v) -> {
             for(Info i : v) {
-                if(now - i.getTimeStamp()>hitTimeDelta) removeHit(k);
+                if(now - i.getTimeStamp()>config.getHitTimeDelta()) removeHit(k);
             }
         });
     }

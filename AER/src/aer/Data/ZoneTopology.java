@@ -7,6 +7,7 @@ package aer.Data;
 
 // Class que contem informacao relativa a Topologia Local com tamanho N 
 
+import aer.miscelaneous.Config;
 import static aer.miscelaneous.Crypto.hexStringToByteArray;
 import java.net.Inet6Address;
 import java.nio.ByteBuffer;
@@ -40,11 +41,11 @@ public class ZoneTopology {
     }
     
     HashMap <byte[], Info> hmap;
-    int zoneSize;
+    Config config;
     
-    public ZoneTopology(int zoneSize) {
-       this.zoneSize    = zoneSize;
-       this.hmap        = new HashMap<byte[], Info>();
+    public ZoneTopology(Config config) {
+       this.config    = config;
+       this.hmap      = new HashMap<byte[], Info>();
     }
     
     public Object addPeer(byte[] nodeId, Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
@@ -64,11 +65,11 @@ public class ZoneTopology {
         else return false;
     }
     
-    public void gcPeer(long maxdelta) {
+    public void gcPeer() {
         long now  = System.currentTimeMillis();
         
         this.hmap.forEach((k, v) -> {
-            if(now - v.getTimeStamp()>maxdelta) removePeer(k);
+            if(now - v.getTimeStamp() > config.getZoneTimeDelta()) removePeer(k);
         });
     }
     

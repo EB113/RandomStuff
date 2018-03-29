@@ -7,6 +7,7 @@ package aer.Data;
 
 // Class que contem informacao relativa a Request Activos.
 
+import aer.miscelaneous.Config;
 import java.net.Inet6Address;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -33,32 +34,48 @@ public class RequestCache {
         }
     }
     HashMap <byte[], ArrayList<Info>> hmap;
-    int requestCacheSize;
+    Config config;
     
-    public RequestCache(int requestCacheSize) {
-       this.requestCacheSize    = requestCacheSize;
-       this.hmap                = new HashMap<byte[], ArrayList<Info>>();
+    public RequestCache(Config config) {
+       this.config  =   config;
+       this.hmap    = new HashMap<byte[], ArrayList<Info>>();
     }
     
     //limiting arraylist size
-    public Object addRequest(byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count) {
+    public void addRequest(byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count) {
         
         if(this.hmap.containsKey(nodeIdSrc)) {
-            return this.hmap.put(nodeIdSrc, this.hmap.get(nodeIdSrc)).add(new Info(nodeIdDst, hop_count));
+            ArrayList<Info> tmpArray = this.hmap.get(nodeIdSrc);
+            
+            if(tmpArray.size() >= config.getReqArraySize()) return;
+            else {
+                tmpArray.add(new Info(nodeIdDst, hop_count));
+                this.hmap.put(nodeIdSrc, tmpArray);
+            }
+            
+        }else{
+            if(this.hmap.size() < config.getRequestCacheSize()) {
+                ArrayList<Info> tmpArray = new ArrayList<>();
+                Info info = new Info(nodeIdDst, hop_count);
+                
+                tmpArray.add(info);
+                
+                this.hmap.put(nodeIdSrc, tmpArray);
+                return;
+            }
         }
-        return null;
     }
     
     public Object removeRequest(byte[] nodeId) {
         return this.hmap.remove(nodeId);
     }
     
-    public void gcReq(long reqTimeDelta) {
+    public void gcReq() {
         long now  = System.currentTimeMillis();
         
         this.hmap.forEach((k, v) -> {
             for(Info i : v) {
-                if(now - i.getTimeStamp()>reqTimeDelta) removeRequest(k);
+                if(now - i.getTimeStamp()>config.getReqTimeDelta()) removeRequest(k);
             }
         });
     }

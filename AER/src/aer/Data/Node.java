@@ -7,6 +7,7 @@ package aer.Data;
 
 //Class que Contem Informacao relativa ao Nodo
 
+import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
 import static aer.miscelaneous.Crypto.decryptString;
 import static aer.miscelaneous.Crypto.encryptString;
@@ -47,18 +48,18 @@ public class Node {
     private RequestCache rcache;
     private HitCache     hcache;   
     
-    public Node(int difficulty, int zoneSize, int requestCacheSize, int hitCacheSize, long zoneTimeDelta, long reqTimeDelta, long hitTimeDelta) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
+    public Node(Config config) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
         //Configs
-        this.difficulty     = difficulty;
-        this.zoneTimeDelta  = zoneTimeDelta;
-        this.reqTimeDelta   = reqTimeDelta;
-        this.hitTimeDelta   = hitTimeDelta;
+        this.difficulty     = config.getDifficulty();
+        this.zoneTimeDelta  = config.getZoneTimeDelta();
+        this.reqTimeDelta   = config.getReqTimeDelta();
+        this.hitTimeDelta   = config.getHitTimeDelta();
         //Node Identity
         genKeyPair();
         //Routing Data
-        this.topo   = new ZoneTopology(zoneSize);
-        this.rcache = new RequestCache(requestCacheSize);
-        this.hcache = new HitCache(hitCacheSize);
+        this.topo   = new ZoneTopology(config);
+        this.rcache = new RequestCache(config);
+        this.hcache = new HitCache(config);
     }
     
     //
@@ -130,17 +131,17 @@ public class Node {
     
     //GarbageCollect
     public void gcPeerZone() {
-        this.topo.gcPeer(this.zoneTimeDelta);
+        this.topo.gcPeer();
     }
     
     //GarbageCollect
     public void gcHitCache() {
-        this.hcache.gcHit(this.hitTimeDelta);
+        this.hcache.gcHit();
     }
     
     //GarbageCollect
     public void gcReqCache() {
-        this.rcache.gcReq(this.reqTimeDelta);
+        this.rcache.gcReq();
     }
     
     //TODO

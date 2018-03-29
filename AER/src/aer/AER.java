@@ -5,12 +5,13 @@
  */
 package aer;
 
-import WatchDog.ZoneWatch;
+import aer.miscelaneous.ZoneWatch;
 import aer.Data.Node;
 import aer.TCP.EmitterTCP;
 import aer.TCP.ListenerTCP;
 import aer.UDP.ListenerUDP;
 import aer.UDP.EmitterUDP;
+import aer.miscelaneous.Config;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,27 +26,15 @@ public class AER {
       {
          System.out.println("Init Adhoc Node....");
          
-         //Configs
-         int difficulty             = 1; //Num de zeros msb's no nodeId
+         Config config              = new Config();
          
-         int zoneSize               = 2; //Tamanho da Zona
-         int requestCacheSize       = 5; //Tamanhp da Cache dos Requests
-         int hitCacheSize           = 5; //Tamanho da Cache dos HIts
-         
-         //size per array still needs to be implemented for limiting per nodeid
-         
-         long zoneTimeDelta         = 60;  //Tempo max entre peer hellos
-         long reqTimeDelta          = 600; //Tempo de vida dos Requests
-         long hitTimeDelta          = 600; //Tempo de vida dos Hit
-         int watchDogTimer          = 10;  //Tempo de sleep para o WatchDog da tabela ZoneTopology
-         
-         AtomicBoolean watchDogFlag = new AtomicBoolean(true); //Falg para termino da THread
+         AtomicBoolean watchDogFlag = new AtomicBoolean(true); //Flag para termino da THread
          
          // Node Setup
-         Node id = new Node(difficulty, zoneSize, requestCacheSize, hitCacheSize, zoneTimeDelta, reqTimeDelta, hitTimeDelta);
+         Node id = new Node(config);
          
          //WatchDog
-         ZoneWatch wd_zone = new ZoneWatch(watchDogFlag, watchDogTimer, id);
+         ZoneWatch wd_zone = new ZoneWatch(watchDogFlag, config, id);
          Thread t_wd_zone  = new Thread(wd_zone);
          
  	 //UDP Thread Object Init + Thread Init

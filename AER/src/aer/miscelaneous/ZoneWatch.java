@@ -3,9 +3,10 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package WatchDog;
+package aer.miscelaneous;
 
 import aer.Data.Node;
+import aer.miscelaneous.Config;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -20,9 +21,9 @@ public class ZoneWatch implements Runnable{
     int sleepTime;
     Node node;
     
-    public ZoneWatch(AtomicBoolean flag, int sleeTime, Node node){
+    public ZoneWatch(AtomicBoolean flag, Config config, Node node){
         this.flag       = flag;
-        this.sleepTime  = sleeTime;
+        this.sleepTime  = config.getWatchDogTimer();
         this.node       = node;
     }
     
