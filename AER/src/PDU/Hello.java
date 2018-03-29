@@ -5,10 +5,19 @@
  */
 package PDU;
 
+import aer.Data.Node;
+
 /**
  *
  * @author pedro
  */
 public class Hello {
+
+    public Hello(Node node) {
+        
+    }
     
+    public void serialize() {
+    
+    }
 }

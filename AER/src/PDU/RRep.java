@@ -10,5 +10,11 @@ package PDU;
  * @author pedro
  */
 public class RRep {
+
+    public RRep() {
+    }
     
+    public void serialize() {
+    
+    }
 }

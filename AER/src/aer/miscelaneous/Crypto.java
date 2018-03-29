@@ -17,6 +17,8 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.UUID;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -194,6 +196,22 @@ public final class Crypto {
             e.printStackTrace();
             return null;
         }
+    }
+    
+    public static byte[] GenerateSignature(byte[] plaintext, PrivateKey privk) throws SignatureException, UnsupportedEncodingException, InvalidKeyException, NoSuchAlgorithmException, NoSuchProviderException{
+		Signature ecdsaSign = Signature.getInstance("SHA256withECDSA", "BC");
+		ecdsaSign.initSign(privk);
+		ecdsaSign.update(plaintext); //plaintext.getBytes("UTF-8")
+		byte[] signature = ecdsaSign.sign();
+		System.out.println(signature.toString());
+		return signature;
+	}
+	
+    public static boolean ValidateSignature(byte[] plaintext, PublicKey pubk, byte[] signature) throws SignatureException, InvalidKeyException, UnsupportedEncodingException, NoSuchAlgorithmException, NoSuchProviderException{
+            Signature ecdsaVerify = Signature.getInstance("SHA256withECDSA", "BC");
+            ecdsaVerify.initVerify(pubk);
+            ecdsaVerify.update(plaintext); //plaintext.getBytes("UTF-8")
+            return ecdsaVerify.verify(signature);
     }
     
     
