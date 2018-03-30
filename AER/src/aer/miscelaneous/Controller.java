@@ -5,6 +5,8 @@
  */
 package aer.miscelaneous;
 
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -14,12 +16,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Controller {
     private AtomicBoolean watchDogFlag;
     private AtomicBoolean UDPFlag;        
-    private AtomicBoolean TCPFlag;        
+    private AtomicBoolean TCPFlag; 
+    private BlockingQueue queueUDP;
             
     public Controller() {
-        this.watchDogFlag  = new AtomicBoolean(true); //Falg para termino da THread
-        this.UDPFlag       = new AtomicBoolean(true); //Falg para termino da THread
-        this.TCPFlag       = new AtomicBoolean(true); //Falg para termino da THread
+        this.watchDogFlag  = new AtomicBoolean(true); //Flag para termino da THread
+        this.UDPFlag       = new AtomicBoolean(true); //Flag para termino da THread
+        this.TCPFlag       = new AtomicBoolean(true); //Flag para termino da THread
+        this.queueUDP      = new LinkedBlockingQueue(); //fILA the PDU Objects
+    }
+
+    public Object popQueueUDP() {
+        return queueUDP.poll();
+    }
+    
+    public void pushQueueUDP(Object obj) {
+        this.queueUDP.add(obj);
     }
 
     public AtomicBoolean getWatchDogFlag() {

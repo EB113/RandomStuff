@@ -25,6 +25,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.util.ArrayList;
 import javax.crypto.SecretKey;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -33,7 +34,7 @@ import org.bouncycastle.jce.spec.ECParameterSpec;
 public class Node {
     //Configs
     private int     difficulty;
-    private byte[]  seq_num;
+    private Integer  seq_num;
     private long    zoneTimeDelta;  
     private long    reqTimeDelta;
     private long    hitTimeDelta;
@@ -51,6 +52,7 @@ public class Node {
     public Node(Config config) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
         //Configs
         this.difficulty     = config.getDifficulty();
+        this.seq_num        = -1;
         this.zoneTimeDelta  = config.getZoneTimeDelta();
         this.reqTimeDelta   = config.getReqTimeDelta();
         this.hitTimeDelta   = config.getHitTimeDelta();
@@ -113,11 +115,15 @@ public class Node {
     //
     //CODE RELATED TO MAINTAINING ROUTING DATA
     //
-            
+    public byte[] getSeq() {
+        ByteBuffer buffer = ByteBuffer.allocate(4);
+        buffer.putInt(this.seq_num);
+        
+        return buffer.array();
+    }        
+    
     void incrSeq(){
-        int aux         = ByteBuffer.wrap(this.seq_num).getInt();
-        aux++;
-        this.seq_num    = ByteBuffer.allocate(4).putInt(aux).array();
+        this.seq_num++;
     }
     
     public void addPeerZone(byte[] nodeId, Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
@@ -143,6 +149,14 @@ public class Node {
     public void gcReqCache() {
         this.rcache.gcReq();
     }
+    
+    //Get Peers in Zone max distance = hops
+    public ArrayList<byte[]> getZonePeersIds(int hops) {
+        ArrayList out = this.topo.getPeer(hops);
+        if(out != null) return out;
+        return new ArrayList<byte[]>();
+    }
+    
     
     //TODO
     public void getRoute() {

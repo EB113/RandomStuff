@@ -12,9 +12,12 @@ import static aer.miscelaneous.Crypto.hexStringToByteArray;
 import java.net.Inet6Address;
 import java.nio.ByteBuffer;
 import java.security.Timestamp;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class ZoneTopology {
+
+    
     //Value Class
     class Info {
         Inet6Address    addr6;
@@ -38,6 +41,11 @@ public class ZoneTopology {
         public long getTimeStamp() {
             return this.timestamp;
         }
+
+        public int getHop_dist() {
+            return hop_dist;
+        }
+               
     }
     
     HashMap <byte[], Info> hmap;
@@ -73,4 +81,18 @@ public class ZoneTopology {
         });
     }
     
+    ArrayList<byte[]> getPeer(int hops) {
+        
+        if(this.hmap.size()>0) {
+            ArrayList<byte[]> peers = new ArrayList<>();
+            
+            this.hmap.forEach((k, v) -> {
+                if(v.getHop_dist() <= hops) peers.add(k);
+            });
+            
+            return peers;
+        }
+        
+        return null;
+    }
 }

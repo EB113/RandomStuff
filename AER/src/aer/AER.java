@@ -9,13 +9,12 @@ package aer;
 import aer.Data.Node;
 import aer.TCP.EmitterTCP;
 import aer.TCP.ListenerTCP;
+import aer.UDP.HelloEmitter;
 import aer.UDP.ListenerUDP;
-import aer.UDP.EmitterUDP;
+import aer.UDP.UDPQueue;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Controller;
 import aer.miscelaneous.ZoneWatch;
-import java.net.ServerSocket;
-import java.net.Socket;
 
 /**
  *
@@ -38,11 +37,13 @@ public class AER {
          Thread t_wd_zone  = new Thread(wd_zone);
          
  	 //UDP Thread Object Init + Thread Init
-         ListenerUDP listenerUDP    = new ListenerUDP();
-         EmitterUDP emitterUDP      = new EmitterUDP(control);
+         //UDPQueue queueUDP          = new UDPQueue(control,id);
+         ListenerUDP listenerUDP    = new ListenerUDP(control,id);
+         HelloEmitter helloUDP      = new HelloEmitter(control,config,id);
          
+         //Thread t_queue_UDP         = new Thread(queueUDP);
          Thread t_listener_UDP      = new Thread(listenerUDP);
-         Thread t_emitter_UDP       = new Thread(emitterUDP);
+         Thread t_emitter_UDP       = new Thread(helloUDP);
         
          //TCP Thread Object Init + Thread Init
          //EmitterTCP emitterTCP      = new EmitterTCP();
@@ -53,11 +54,14 @@ public class AER {
          
          // TCP + UDP + WatchDog's Thread Start
         
+         //t_queue_UDP.start();
          t_listener_UDP.start();
          t_emitter_UDP.start();
          //t_emitter_TCP.start();
          //t_listener_TCP.start();
          t_wd_zone.start();
+         
+          Thread.sleep(5000);
          
          synchronized(control){
              control.setUDPFlag(false);
@@ -67,6 +71,7 @@ public class AER {
          }
          
          // Thread close Wait
+         //t_queue_UDP.join();
          t_listener_UDP.join();
          t_emitter_UDP.join();
          //t_emitter_TCP.join();
