@@ -37,7 +37,7 @@ public class RequestCache {
     Config config;
     
     public RequestCache(Config config) {
-       this.config  =   config;
+       this.config  = config;
        this.hmap    = new HashMap<byte[], ArrayList<Info>>();
     }
     

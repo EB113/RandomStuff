@@ -13,7 +13,9 @@ import static aer.miscelaneous.Crypto.decryptString;
 import static aer.miscelaneous.Crypto.encryptString;
 import static aer.miscelaneous.Crypto.generateSharedSecret;
 import static aer.miscelaneous.Crypto.toHex;
+import aer.miscelaneous.Tuple;
 import java.net.Inet6Address;
+import java.net.InetAddress;
 
 import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
@@ -33,16 +35,14 @@ import org.bouncycastle.jce.spec.ECParameterSpec;
 
 public class Node {
     //Configs
-    private int     difficulty;
-    private Integer  seq_num;
-    private long    zoneTimeDelta;  
-    private long    reqTimeDelta;
-    private long    hitTimeDelta;
+    public Config  config;
     
     //Identity
     private byte[]      id;
     private PrivateKey  privk;
     private PublicKey   pubk;
+    private Integer     seq_num;
+    private Integer     req_num;
     
     //Routing
     private ZoneTopology topo;
@@ -51,12 +51,9 @@ public class Node {
     
     public Node(Config config) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
         //Configs
-        this.difficulty     = config.getDifficulty();
-        this.seq_num        = -1;
-        this.zoneTimeDelta  = config.getZoneTimeDelta();
-        this.reqTimeDelta   = config.getReqTimeDelta();
-        this.hitTimeDelta   = config.getHitTimeDelta();
+        this.config = config;
         //Node Identity
+        this.seq_num        = -1;
         genKeyPair();
         //Routing Data
         this.topo   = new ZoneTopology(config);
@@ -64,9 +61,11 @@ public class Node {
         this.hcache = new HitCache(config);
     }
     
-    //
+    
+    //-----------------------------
     //CODE RELATED TO NODE IDENTITY
-    //
+    //------------------------------
+    
     public SecretKey getShared(PublicKey peer_pubk) {
         return generateSharedSecret(this.privk, peer_pubk);
     }
@@ -85,7 +84,7 @@ public class Node {
         return this.id;
     }
     public void genKeyPair() throws NoSuchAlgorithmException, NoSuchProviderException, InvalidAlgorithmParameterException {
-        KeyPair pair    = Crypto.genValidPair(this.difficulty);
+        KeyPair pair    = Crypto.genValidPair(this.config.getDifficulty());
         this.privk      = pair.getPrivate();
         this.pubk       = pair.getPublic();
         this.id         = Crypto.getId(this.pubk.getEncoded());
@@ -111,51 +110,100 @@ public class Node {
         
         System.out.println(decrypt(k1, encrypt(k2, "ola")));
     }
+    //-----------------------------------------
+    //-------------------END------------------
+    //-----------------------------------------
     
-    //
+    
+    //-----------------------------------------
     //CODE RELATED TO MAINTAINING ROUTING DATA
-    //
+    //-----------------------------------------
+    
+    //---------NODE CLASS----------------
+    void incrSeq(){
+        this.seq_num++;
+    }
+    void incrReq(){
+        this.req_num++;
+    }
+    
+    boolean compare_seq(byte[] seq) {
+        //Validar Input etc
+        int new_seq = ByteBuffer.wrap(seq).getInt();
+        
+        if(new_seq>this.seq_num) return true;
+        else return false;
+    }
+    
+    //-----------ZONETOPOLOGY CLASS--------------
+    public void addPeerZone(byte[] nodeId, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
+        //CHECK SEQUNCE NUMBER
+        synchronized(this.topo){
+            this.topo.addPeerZone(nodeId, addr6, seq_num, peers);
+        }
+    }
+    
+    //Vale a pena verificar o IPV6????
+    public void rmPeerZone(byte[] nodeId) {
+        synchronized(this.topo){
+            this.topo.removePeer(nodeId);
+        }
+    }
+    
+    //GarbageCollect
+    public void gcPeerZone() {
+        synchronized(this.topo){
+            this.topo.gcPeer();
+        }
+    }
+    
+    //-----------HITCACHE CLASS-----------
+    //GarbageCollect
+    public void gcHitCache() {
+        synchronized(this.hcache){
+            this.hcache.gcHit();
+        }
+    }
+    
+    //-------------REQUESTCACHE CLASS----------
+    //GarbageCollect
+    public void gcReqCache() {
+        synchronized(this.rcache){
+            this.rcache.gcReq();
+        }
+    }
+    //-----------------------------------------
+    //-------------------END------------------
+    //-----------------------------------------
+    
+    
+    //-----------------------------------------
+    //CODE RELATED TO REQUESTING ROUTING DATA
+    //-----------------------------------------
+    
+    //---------NODE CLASS-----------
     public byte[] getSeq() {
         ByteBuffer buffer = ByteBuffer.allocate(4);
         buffer.putInt(this.seq_num);
         
         return buffer.array();
-    }        
+    }   
     
-    void incrSeq(){
-        this.seq_num++;
-    }
-    
-    public void addPeerZone(byte[] nodeId, Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
-        if(this.topo.compare_seq(nodeId, seq_num)) this.topo.addPeer(nodeId, addr6, rank, hop_dist, seq_num);
-    }
-    
-    //Vale a pena verificar o IPV6????
-    public void rmPeerZone(byte[] nodeId) {
-        this.topo.removePeer(nodeId);
-    }
-    
-    //GarbageCollect
-    public void gcPeerZone() {
-        this.topo.gcPeer();
-    }
-    
-    //GarbageCollect
-    public void gcHitCache() {
-        this.hcache.gcHit();
-    }
-    
-    //GarbageCollect
-    public void gcReqCache() {
-        this.rcache.gcReq();
-    }
-    
+    //---------ZONETOPOLOGY CLASS-----------
     //Get Peers in Zone max distance = hops
-    public ArrayList<byte[]> getZonePeersIds(int hops) {
-        ArrayList out = this.topo.getPeer(hops);
-        if(out != null) return out;
-        return new ArrayList<byte[]>();
+    public ArrayList<Tuple> getZonePeersIds(int maxHops) {
+        ArrayList<Tuple> out = this.topo.getPeer(maxHops);
+        if(out.size() > 0) return out;
+        return new ArrayList<Tuple>();
     }
+    //-----------------------------------------
+    //-------------------END------------------
+    //-----------------------------------------
+    
+    
+    
+    
+    
     
     
     //TODO

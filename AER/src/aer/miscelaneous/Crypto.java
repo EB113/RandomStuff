@@ -53,6 +53,19 @@ public final class Crypto {
         return sha3.digest();
     }
     
+    public static Boolean cmpByteArray(byte[] b1, byte[] b2) {
+        Boolean bool = false;
+        
+        if(b1.length == b2.length){
+            for(int i=0; i< b1.length; i++) {
+                if(b1[i] != b2[i]) return bool;
+            }
+            bool = true;
+        }
+        
+        return bool;
+    }
+    
     public static String toHex(byte[] input) {
         
         StringBuffer stringBuffer = new StringBuffer();

@@ -10,15 +10,20 @@ package aer.miscelaneous;
  * @author pedro
  */
 public class Config {
+
+    
     //Configs
     int difficulty             = 1; //Num de zeros msb's no nodeId
 
+    int queueSize              = 10;
     int zoneSize               = 2; //Tamanho da Zona
-    int requestCacheSize       = 5; //Tamanhp da Cache dos Requests
-    int hitCacheSize           = 5; //Tamanho da Cache dos HIts
+    int zoneCacheSize          = 10; //Tamanho de nodos destinos na tabela zonetopology
+    int requestCacheSize       = 10; //Tamanhp da Cache dos Requests
+    int hitCacheSize           = 10; //Tamanho da Cache dos HIts
 
-    int reqArraySize           = 5; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
-    int hitArraySize           = 5;
+    int zoneMapSize            = 3; //size per map
+    int reqArraySize           = 3; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
+    int hitArraySize           = 3;
     
     long zoneTimeDelta         = 60;  //Tempo max entre peer hellos  (s)
     long reqTimeDelta          = 600; //Tempo de vida dos Requests  (s)
@@ -30,6 +35,23 @@ public class Config {
     public Config(){
     
     }
+
+    public int getZoneCacheSize() {
+        return zoneCacheSize;
+    }
+
+    public void setZoneCacheSize(int zoneCacheSize) {
+        this.zoneCacheSize = zoneCacheSize;
+    }
+
+    public int getZoneMapSize() {
+        return zoneMapSize;
+    }
+
+    public void setZoneMapSize(int zoneMapSize) {
+        this.zoneMapSize = zoneMapSize;
+    }
+
 
     public int getDifficulty() {
         return difficulty;
@@ -117,6 +139,14 @@ public class Config {
 
     public void setHitArraySize(int hitArraySize) {
         this.hitArraySize = hitArraySize;
+    }
+
+    public int getQueueSize() {
+        return queueSize;
+    }
+
+    public void setQueueSize(int queueSize) {
+        this.queueSize = queueSize;
     }
     
     

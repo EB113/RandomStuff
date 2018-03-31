@@ -9,7 +9,7 @@ package aer;
 import aer.Data.Node;
 import aer.TCP.EmitterTCP;
 import aer.TCP.ListenerTCP;
-import aer.UDP.HelloEmitter;
+import aer.UDP.Hello;
 import aer.UDP.ListenerUDP;
 import aer.UDP.UDPQueue;
 import aer.miscelaneous.Config;
@@ -26,8 +26,8 @@ public class AER {
       {
          System.out.println("Init Adhoc Node....");
          
-         Controller control = new Controller();
          Config config = new Config();
+         Controller control = new Controller(config.getQueueSize());
          
          // Node Setup
          Node id = new Node(config);
@@ -37,11 +37,11 @@ public class AER {
          Thread t_wd_zone  = new Thread(wd_zone);
          
  	 //UDP Thread Object Init + Thread Init
-         //UDPQueue queueUDP          = new UDPQueue(control,id);
+         UDPQueue queueUDP          = new UDPQueue(control);
          ListenerUDP listenerUDP    = new ListenerUDP(control,id);
-         HelloEmitter helloUDP      = new HelloEmitter(control,config,id);
+         Hello helloUDP      = new Hello(control,config,id);
          
-         //Thread t_queue_UDP         = new Thread(queueUDP);
+         Thread t_queue_UDP         = new Thread(queueUDP);
          Thread t_listener_UDP      = new Thread(listenerUDP);
          Thread t_emitter_UDP       = new Thread(helloUDP);
         

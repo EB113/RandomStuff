@@ -5,10 +5,10 @@
  */
 package aer.UDP;
 
-import PDU.Hello;
 import aer.Data.Node;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Controller;
+import aer.miscelaneous.Datagram;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -18,18 +18,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class HelloEmitter implements Runnable{
+public class Hello implements Runnable{
     private Controller  control;
     private Config      config;
     private Node        id;
     private Boolean     bool;
     
     
-    DatagramSocket ds;
-    byte[] b;
-    DatagramPacket dp;
+    private DatagramSocket ds;
+    private DatagramPacket dp;
     
-    public HelloEmitter(Controller control, Config config, Node id) throws SocketException {
+    public Hello(Controller control, Config config, Node id) throws SocketException {
         this.control    = control;
         this.config     = config;
         this.id         = id;
@@ -47,15 +46,15 @@ public class HelloEmitter implements Runnable{
             }
             if(this.bool){
                 try {
-                    byte[] raw = Hello.dump(id);
-                    
-                    this.dp = new DatagramPacket(raw, raw.length, InetAddress.getLocalHost(), 9999);
+                    byte[] raw = Datagram.dumpHello(id);
+                    System.out.println("Hello: " + raw);
+                    this.dp = new DatagramPacket(raw, raw.length, InetAddress.getByName("127.0.0.1"), 9999);//FF02::1
                     this.ds.send(dp);
                     
                 } catch (SocketException ex) {
-                    Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(Hello.class.getName()).log(Level.SEVERE, null, ex);
                 } catch (IOException ex) {
-                    Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(Hello.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }else return;
             
