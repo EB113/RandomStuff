@@ -8,26 +8,30 @@ package aer.Data;
 // Class que contem informacao relativa a Topologia Local com tamanho N 
 
 import aer.miscelaneous.Config;
+import aer.miscelaneous.Crypto;
 import static aer.miscelaneous.Crypto.hexStringToByteArray;
-import java.net.Inet6Address;
+import aer.miscelaneous.Tuple;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.security.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class ZoneTopology {
 
     
     //Value Class
     class Info {
-        Inet6Address    addr6;
+        byte[]          hop_id;
+        InetAddress    hop_addr6;
         float           rank;
         int             hop_dist;
         byte[]          seq_num;
         long            timestamp;
         
-        Info(Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
-            this.addr6      = addr6;
+        Info(InetAddress addr6, float rank, int hop_dist, byte[] seq_num) {
+            this.hop_addr6  = addr6;
             this.rank       = rank;
             this.hop_dist   = hop_dist;
             this.seq_num    = seq_num;
@@ -45,54 +49,101 @@ public class ZoneTopology {
         public int getHop_dist() {
             return hop_dist;
         }
+
+        public byte[] getHop_id() {
+            return hop_id;
+        }
                
     }
     
-    HashMap <byte[], Info> hmap;
+    HashMap <byte[], HashMap<byte[], Info>> hmap;
     Config config;
     
     public ZoneTopology(Config config) {
        this.config    = config;
-       this.hmap      = new HashMap<byte[], Info>();
+       this.hmap      = new HashMap<byte[], HashMap<byte[], Info>>();
     }
     
-    public Object addPeer(byte[] nodeId, Inet6Address addr6, float rank, int hop_dist, byte[] seq_num) {
-        return this.hmap.put(nodeId, new Info(addr6, rank, hop_dist, seq_num));
-    }
-    
-    public Object removePeer(byte[] nodeId) {
-        return this.hmap.remove(nodeId);
-    }
-    
-    public boolean compare_seq(byte[] nodeId, byte[] seq) {
-        //Validar Input etc
-        int new_seq = ByteBuffer.wrap(seq).getInt();
-        int cur_seq = ByteBuffer.wrap(this.hmap.get(nodeId).getSeqNum()).getInt();
+    //RANKRANKRANK??? Muita optimizacao por fazer nas pesquisas e insercoes
+    public void addPeerZone(byte[] nodeId, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
+        long now  = System.currentTimeMillis();
+        byte[] peerId   = null;
+        int    peerDist = 0;
         
-        if(new_seq>cur_seq) return true;
-        else return false;
+        
+        for(Tuple peer: peers) {
+            peerId      = (byte[])peer.y;
+            peerDist    = (int)peer.x;
+            Info info = new Info(addr6, now, peerDist, seq_num);
+            
+            if(this.hmap.containsKey(peerId)) {//Se ja tem o peer na tabela
+                HashMap<byte[], Info> tmp1 = this.hmap.get(peerId);
+                
+                if(tmp1.containsKey(nodeId)){//se ja tem o hop verificar distancias... OBS:problema relativo a TimeStamp podemos estar a nao inserir algo mais recente
+                    if(tmp1.get(nodeId).hop_dist > peerDist) {
+                        tmp1.put(nodeId, info);
+                    }
+                }else if (tmp1.size() < config.getZoneMapSize()){//se nao tem o hop e caso exista espaco adicionar
+                    tmp1.put(nodeId, info);
+                    this.hmap.put(peerId, tmp1);
+                }else {//se nao tem o hop e nao ha espaco retirar hop com dist mais longa
+                    byte[]  curNodeId   = null;
+                    int     maxDist     = 0;
+                    for (Map.Entry<byte[], Info> entry : tmp1.entrySet()){
+                        if(entry.getValue().hop_dist > maxDist) {
+                            curNodeId   = entry.getKey();
+                            maxDist     = entry.getValue().hop_dist;
+                        }
+                    }
+                    if(maxDist >= peerDist && curNodeId != null) {
+                        tmp1.remove(curNodeId);
+                        tmp1.put(nodeId, info);
+                        this.hmap.put(peerId, tmp1);
+                    }
+                }
+            }else {//Se nao tem o peer na tabela
+                HashMap<byte[], Info> tmp2 = new HashMap<>();
+                tmp2.put(nodeId, info);
+                this.hmap.put(peerId, tmp2);
+            }
+        }
+    }
+    /*
+    public Object addPeer(byte[] nodeId, Inet6Address addr6, int hop_dist, byte[] seq_num) {
+        return this.hmap.put(nodeId, new Info(addr6, 0, hop_dist, seq_num));
+    }*/
+    
+    public void removePeer(byte[] nodeId) {
+        this.hmap.remove(nodeId);
+    }
+    
+    public void removePeerLink(byte[] nodeIdDst, byte[] nodeIdHop) {
+        HashMap<byte[], Info> tmp = this.hmap.get(nodeIdDst);
+        tmp.remove(nodeIdHop);
+        this.hmap.put(nodeIdDst, tmp);
     }
     
     public void gcPeer() {
         long now  = System.currentTimeMillis();
         
-        this.hmap.forEach((k, v) -> {
-            if(now - v.getTimeStamp() > config.getZoneTimeDelta()) removePeer(k);
+        this.hmap.forEach((k1, v1) -> {
+            v1.forEach((k2, v2) -> {
+                if(now - v2.getTimeStamp() > config.getZoneTimeDelta()) removePeerLink(k1,k2);
+            });
         });
     }
     
-    ArrayList<byte[]> getPeer(int hops) {
+    public ArrayList<Tuple> getPeer(int maxHops) {
+        ArrayList<Tuple> peers = new ArrayList<>();
         
-        if(this.hmap.size()>0) {
-            ArrayList<byte[]> peers = new ArrayList<>();
-            
-            this.hmap.forEach((k, v) -> {
-                if(v.getHop_dist() <= hops) peers.add(k);
+        this.hmap.forEach((k1, v1) -> {
+            v1.forEach((k2, v2) -> {
+                if(v2.hop_dist <= maxHops) {
+                    Tuple tuple = new Tuple(k1, v2.hop_dist);
+                }
             });
-            
-            return peers;
-        }
+        });
         
-        return null;
+        return peers;
     }
 }

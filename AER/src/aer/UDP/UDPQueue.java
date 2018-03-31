@@ -5,17 +5,16 @@
  */
 package aer.UDP;
 
-import aer.Data.Node;
 import aer.miscelaneous.Controller;
+import aer.miscelaneous.Datagram;
+import aer.miscelaneous.Tuple;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 
 /**
  *
@@ -23,57 +22,38 @@ import java.util.logging.Logger;
  */
 public class UDPQueue implements Runnable{
     private Controller control;
-    private Node id;
     private Boolean bool;
+    private DatagramPacket dp;
+    private DatagramSocket ds;
+    private Tuple tuple;
     
-    
-    DatagramSocket ds;
-    String i;
-    byte[] b;
-    InetAddress ia;
-    DatagramPacket dp;
-    byte[] b1;
-    DatagramPacket dp1;
-    String str;
-    
-    public UDPQueue(Controller control, Node id) throws SocketException {
+    public UDPQueue(Controller control) throws SocketException {
         this.control    = control;
-        this.id         = id;
         this.bool       = this.control.getUDPFlag().get();
-    }    
+        this.tuple      = null;
+        this.ds         = new DatagramSocket();
+    }
     
     @Override
-    public void run(){
-        
+    public void run() {
         while(true){
             
             synchronized(this.control){
                 this.bool = this.control.getUDPFlag().get();
             }
             if(this.bool){
+                    this.tuple = (Tuple) control.popQueueUDP();
+                    
+                    if(tuple != null) this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);
                 try {
-                    this.ds = new DatagramSocket();
-                    this.i = "Hello";
-                    this.b = i.getBytes();
-
-                    this.ia = InetAddress.getLocalHost();
-                    this.dp = new DatagramPacket(b, b.length, ia, 9999);
                     this.ds.send(dp);
-                } catch (SocketException ex) {
-                    Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
                 } catch (IOException ex) {
                     Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
                 }
-            }else return;
-            
-            try {
-                TimeUnit.SECONDS.sleep(5);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
             }
-        } 
+            
+        }    
+            
     }
+    
 }
-
-//tread que vai escrever na tread
-//envia o Hello

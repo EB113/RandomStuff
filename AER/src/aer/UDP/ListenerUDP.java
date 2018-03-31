@@ -10,7 +10,6 @@ import aer.miscelaneous.Controller;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -22,10 +21,14 @@ import java.util.logging.Logger;
  * @author pedro
  */
 public class ListenerUDP implements Runnable{
+    
+    //Configs
     private Controller control;
     private Node id;
     private Boolean bool;
+    //Sockets
     private DatagramSocket ds;
+    private DatagramPacket dp;
     
     public ListenerUDP(Controller control, Node id) {
         this.control    = control;
@@ -50,11 +53,11 @@ public class ListenerUDP implements Runnable{
                 try {
                     byte[] b1 = new byte[1024]; // Size to Fix
 
-                    DatagramPacket dp = new DatagramPacket(b1, b1.length);
+                    this.dp = new DatagramPacket(b1, b1.length);
                     this.ds.receive(dp);
-                    String str = new String(dp.getData(),0,dp.getLength());
-                    System.out.println("Mensagem do Emiter foi: "+ str);
-
+                    System.out.println("Listener: " + dp.getData());
+                    new Interpreter(control, this.id, dp.getData(), dp.getAddress());
+                    
                 } catch (SocketException ex) {
                     //Logger.getLogger(ListenerUDP.class.getName()).log(Level.SEVERE, null, ex);
                     //What to do????
@@ -73,7 +76,3 @@ public class ListenerUDP implements Runnable{
         
     }
 }
-
-//Tread que vai ler o que está no socket
-//escreve no ecra o Hello
-//meter ambos a falar para o mesmo sitio, para o local host
