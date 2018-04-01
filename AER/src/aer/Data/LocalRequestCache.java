@@ -5,6 +5,7 @@
  */
 package aer.Data;
 
+import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
 import java.net.InetAddress;
@@ -25,7 +26,7 @@ public class LocalRequestCache {
         byte[]                  req_num;
         long                    timestamp;
         
-        Info(LinkedList<InetAddress> usedPeers, InetAddress nodeId_hop, byte[] nodeId_dst,  byte[] req_num) {
+        Info(LinkedList<InetAddress> usedPeers, InetAddress nodeId_hop, byte[] req_num) {
             this.req_num         = req_num;
             this.nodeAddr_hop    = nodeId_hop;
             this.usedPeers       = usedPeers;
@@ -37,16 +38,18 @@ public class LocalRequestCache {
         }
     }
     //NODE ID DST X info list
-    HashMap <byte[], LinkedList<Info>> hmap;
+    HashMap <ByteArray, LinkedList<Info>> hmap;
     Config config;
     
     public LocalRequestCache(Config config) {
        this.config  = config;
-       this.hmap    = new HashMap<byte[], LinkedList<Info>>();
+       this.hmap    = new HashMap<ByteArray, LinkedList<Info>>();
     }
 
-    void addRequest(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeHopId, byte[] nodeIdDst, int hop_count, byte[] req_num) {
+    void addRequest(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeIdDst_old, int hop_count, byte[] req_num) {
     
+        ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
+        
         if(this.hmap.containsKey(nodeIdDst)) {
             LinkedList<Info> tmpArray = this.hmap.get(nodeIdDst);
             
@@ -54,7 +57,7 @@ public class LocalRequestCache {
                 System.out.println("DEMASIADOS PEDIDOS AO PEER ESPECIFICO!");
                 return;
             }else {
-                tmpArray.add(new Info(usedPeers, nodeHopAddr, nodeIdDst, req_num));
+                tmpArray.add(new Info(usedPeers, nodeHopAddr, req_num));
                 this.hmap.put(nodeIdDst, tmpArray);
             }
             
@@ -62,7 +65,7 @@ public class LocalRequestCache {
             if(this.hmap.size() < config.getRequestCacheSize()) {
                 LinkedList<Info> tmpArray = new LinkedList<>();
                 
-                tmpArray.add(new Info(usedPeers, nodeHopAddr, nodeIdDst, req_num));
+                tmpArray.add(new Info(usedPeers, nodeHopAddr, req_num));
                 
                 this.hmap.put(nodeIdDst, tmpArray);
             }else {
@@ -76,9 +79,9 @@ public class LocalRequestCache {
         
         byte[] nodeId = null;
         
-        for(Map.Entry<byte[], LinkedList<Info>> pair : this.hmap.entrySet()) {
+        for(Map.Entry<ByteArray, LinkedList<Info>> pair : this.hmap.entrySet()) {
             for(Info info : pair.getValue()) {
-                if(Crypto.cmpByteArray(info.req_num, req_num)) nodeId = pair.getKey();
+                if(Crypto.cmpByteArray(info.req_num, req_num)) nodeId = pair.getKey().getData();
             }
         }
         

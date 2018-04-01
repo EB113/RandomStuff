@@ -7,6 +7,7 @@ package aer.Data;
 
 // Class que contem informacao relativa a Topologia Local com tamanho N 
 
+import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
 import static aer.miscelaneous.Crypto.hexStringToByteArray;
@@ -55,28 +56,41 @@ public class ZoneTopology {
         
     }
     
-    HashMap <byte[], HashMap<byte[], Info>> hmap;
+    HashMap <ByteArray, HashMap<ByteArray, Info>> hmap;
     Config config;
     
     public ZoneTopology(Config config) {
        this.config    = config;
-       this.hmap      = new HashMap<byte[], HashMap<byte[], Info>>();
+       this.hmap      = new HashMap<ByteArray, HashMap<ByteArray, Info>>();
     }
     
     //RANKRANKRANK??? Muita optimizacao por fazer nas pesquisas e insercoes
-    public void addPeerZone(byte[] nodeId, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
-        long now  = System.currentTimeMillis();
-        byte[] peerId   = null;
-        int    peerDist = 0;
+    public void addPeerZone(byte[] nodeId_old, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
+        long        now         = System.currentTimeMillis();
+        ByteArray   peerId      = null;
+        int         peerDist    = 0;
+        Info        info        = null;
         
+        ByteArray   nodeId      = new ByteArray(nodeId_old);
         
+        //ADD HELLO OWNER
+        if(!this.hmap.containsKey(nodeId)){
+            
+            HashMap<ByteArray, Info> tmp2 = new HashMap<>();
+            info = new Info(addr6, 0, 1, seq_num);
+            
+            tmp2.put(nodeId, info);
+            this.hmap.put(nodeId, tmp2);
+        }
+        
+        //ADD PEERS
         for(Tuple peer: peers) {
-            peerId      = (byte[])peer.y;
+            peerId      = new ByteArray((byte[])peer.y);
             peerDist    = (int)peer.x;
-            Info info = new Info(addr6, now, peerDist, seq_num);
+            info = new Info(addr6, 0, peerDist, seq_num);
             
             if(this.hmap.containsKey(peerId)) {//Se ja tem o peer na tabela
-                HashMap<byte[], Info> tmp1 = this.hmap.get(peerId);
+                HashMap<ByteArray, Info> tmp1 = this.hmap.get(peerId);
                 
                 if(tmp1.containsKey(nodeId)){//se ja tem o hop verificar distancias... OBS:problema relativo a TimeStamp podemos estar a nao inserir algo mais recente
                     if(tmp1.get(nodeId).hop_dist > peerDist) {
@@ -86,9 +100,9 @@ public class ZoneTopology {
                     tmp1.put(nodeId, info);
                     this.hmap.put(peerId, tmp1);
                 }else {//se nao tem o hop e nao ha espaco retirar hop com dist mais longa
-                    byte[]  curNodeId   = null;
-                    int     maxDist     = 0;
-                    for (Map.Entry<byte[], Info> entry : tmp1.entrySet()){
+                    ByteArray   curNodeId       = null;
+                    int         maxDist         = 0;
+                    for (Map.Entry<ByteArray, Info> entry : tmp1.entrySet()){
                         if(entry.getValue().hop_dist > maxDist) {
                             curNodeId   = entry.getKey();
                             maxDist     = entry.getValue().hop_dist;
@@ -101,23 +115,21 @@ public class ZoneTopology {
                     }
                 }
             }else {//Se nao tem o peer na tabela
-                HashMap<byte[], Info> tmp2 = new HashMap<>();
+                HashMap<ByteArray, Info> tmp2 = new HashMap<>();
+                info = new Info(addr6, 0, peerDist, seq_num);
+
                 tmp2.put(nodeId, info);
                 this.hmap.put(peerId, tmp2);
             }
         }
     }
-    /*
-    public Object addPeer(byte[] nodeId, Inet6Address addr6, int hop_dist, byte[] seq_num) {
-        return this.hmap.put(nodeId, new Info(addr6, 0, hop_dist, seq_num));
-    }*/
     
-    public void removePeer(byte[] nodeId) {
+    public void removePeer(ByteArray nodeId) {
         this.hmap.remove(nodeId);
     }
     
-    public void removePeerLink(byte[] nodeIdDst, byte[] nodeIdHop) {
-        HashMap<byte[], Info> tmp = this.hmap.get(nodeIdDst);
+    public void removePeerLink(ByteArray nodeIdDst, ByteArray nodeIdHop) {
+        HashMap<ByteArray, Info> tmp = this.hmap.get(nodeIdDst);
         tmp.remove(nodeIdHop);
         this.hmap.put(nodeIdDst, tmp);
     }
@@ -142,7 +154,7 @@ public class ZoneTopology {
         this.hmap.forEach((k1, v1) -> {
             v1.forEach((k2, v2) -> {
                 if(v2.hop_dist <= maxHops) {
-                    Tuple tuple = new Tuple(k1, v2.hop_dist);
+                    Tuple tuple = new Tuple(k1.getData(), v2.hop_dist);
                     peers.push(tuple);
                 }
             });
@@ -157,9 +169,9 @@ public class ZoneTopology {
         if(this.hmap.containsKey(nodeId)){
             InetAddress peer = null;
             int minDist = config.getZoneSize(); //MAX DIST is BORDER
-            HashMap<byte[], Info> routes = this.hmap.get(nodeId);
+            HashMap<ByteArray, Info> routes = this.hmap.get(nodeId);
             
-            for(Map.Entry<byte[], Info> pair : routes.entrySet()) {
+            for(Map.Entry<ByteArray, Info> pair : routes.entrySet()) {
                 if(pair.getValue().getHop_dist() < minDist) {
                     peer    = pair.getValue().getHop_addr();
                     minDist = pair.getValue().getHop_dist();
@@ -174,10 +186,10 @@ public class ZoneTopology {
     public byte[] getNodeId(InetAddress nodeHopAddr) {
         byte[] peerId = null;
         
-        for(Map.Entry<byte[], HashMap<byte[], Info>> pair1 : this.hmap.entrySet()) {
-            for(Map.Entry<byte[], Info> pair2 : pair1.getValue().entrySet()) {
+        for(Map.Entry<ByteArray, HashMap<ByteArray, Info>> pair1 : this.hmap.entrySet()) {
+            for(Map.Entry<ByteArray, Info> pair2 : pair1.getValue().entrySet()) {
                 if(pair2.getValue().hop_addr.equals(nodeHopAddr)) {
-                    return pair2.getKey();
+                    return pair2.getKey().getData();
                 }
             }
         }
@@ -202,10 +214,13 @@ public class ZoneTopology {
     }
 
     //INETADDRESS PARA PREVENIR IDS REPETIDOS
-    void rmRoute(byte[] nodeIdSrc, byte[] nodeIdDst, InetAddress hopAddr) {
+    void rmRoute(byte[] nodeIdSrc_old, byte[] nodeIdDst_old, InetAddress hopAddr) {
+        
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
         
         if(this.hmap.containsKey(nodeIdDst)){
-            HashMap<byte[], Info> tmpArray = this.hmap.get(nodeIdDst);
+            HashMap<ByteArray, Info> tmpArray = this.hmap.get(nodeIdDst);
             if(tmpArray.containsKey(nodeIdSrc) && tmpArray.get(nodeIdSrc).hop_addr.equals(hopAddr)) {
                 tmpArray.remove(nodeIdSrc);
             }

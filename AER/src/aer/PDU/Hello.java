@@ -27,7 +27,7 @@ public class Hello {
         int peerslen = 0, counter=0, limit = 0, it = 0;
         byte[] tmp = null;
         
-        if(peers.size() == 0  )
+        
         //PDU TOTAL SIZE
         if(zoneSize == 2)   for(Tuple i: peers) peerslen+=((byte[])(i.x)).length; //SEM HOP DIST
         else for(Tuple i: peers) peerslen+=(((byte[])(i.x)).length + 4); //COM HOP DIST
@@ -178,6 +178,6 @@ public class Hello {
             }
         }
         
-        if(tuple.size() > 0)    id.addPeerZone(nodeId, origin, seq_num, tuple);
+        id.addPeerZone(nodeId, origin, seq_num, tuple);
     }
 }

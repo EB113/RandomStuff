@@ -7,6 +7,7 @@ package aer.Data;
 
 // Class que contem informacao relativa a Request Activos.
 
+import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
 import java.net.Inet6Address;
@@ -41,16 +42,18 @@ public class RemoteRequestCache {
         }
     }
     //NODEID OF NODE THAT REQUESTED X INFO LIST
-    HashMap <byte[], LinkedList<Info>> hmap;
+    HashMap <ByteArray, LinkedList<Info>> hmap;
     Config config;
     
     public RemoteRequestCache(Config config) {
        this.config  = config;
-       this.hmap    = new HashMap<byte[], LinkedList<Info>>();
+       this.hmap    = new HashMap<ByteArray, LinkedList<Info>>();
     }
     
     //limiting arraylist size
-    public void addRequest(LinkedList<InetAddress> usedPeers, InetAddress peer_hop, byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+    public void addRequest(LinkedList<InetAddress> usedPeers, InetAddress peer_hop, byte[] nodeIdSrc_old, byte[] nodeIdDst, byte[] req_num) {
+        
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
         
         if(this.hmap.containsKey(nodeIdSrc)) {
             LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
@@ -74,7 +77,7 @@ public class RemoteRequestCache {
         }
     }
     
-    public Object removeRequest(byte[] nodeId) {
+    public Object removeRequest(ByteArray nodeId) {
         return this.hmap.remove(nodeId);
     }
     
@@ -88,9 +91,9 @@ public class RemoteRequestCache {
         });
     }
 
-    InetAddress rmReq(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
+    InetAddress rmReq(byte[] nodeIdDst, byte[] nodeIdSrc_old, byte[] req_num) {
         InetAddress hopAddr = null;
-        
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
         LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
         
         for(Info info : tmpArray) {

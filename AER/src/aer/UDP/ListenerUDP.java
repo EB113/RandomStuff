@@ -35,16 +35,17 @@ public class ListenerUDP implements Runnable{
         this.control    = control;
         this.id         = id;
         this.bool       = this.control.getUDPFlag().get();
-    }
-    
-    public void run(){
+        
         try {
             this.ds         = new DatagramSocket(9999);
             this.ds.setSoTimeout(1000);
         } catch (SocketException ex) {
             Logger.getLogger(ListenerUDP.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+    }
+    
+    public void run(){
+            
         while(true){
             
             synchronized(this.control){

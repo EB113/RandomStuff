@@ -7,6 +7,7 @@ package aer.Data;
 
 // Class que contem informacao relativa a Request que obteram resposta com successo com origem no host ou outsourced.
 
+import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
 import aer.miscelaneous.Tuple;
@@ -36,34 +37,39 @@ public class HitCache {
             return this.timestamp;
         }
     }
-    HashMap <byte[], HashMap <byte[], Info>> hmap;
+    HashMap <ByteArray, HashMap <ByteArray, Info>> hmap;
     Config config;
     
     public HitCache(Config config) {
        this.config   = config;
-       this.hmap     = new HashMap<byte[], HashMap <byte[], Info>>();
+       this.hmap     = new HashMap<ByteArray, HashMap<ByteArray, Info>>();
     }
     
-    public void removeHitLink(byte[] nodeIdDst, byte[] nodeIdHop) {
-        HashMap<byte[], Info> tmp = this.hmap.get(nodeIdDst);
+    public void removeHitLink(ByteArray nodeIdDst, ByteArray nodeIdHop) {
+                
+        HashMap<ByteArray, Info> tmp = this.hmap.get(nodeIdDst);
         tmp.remove(nodeIdHop);
-        this.hmap.put(nodeIdDst, tmp);
+        this.hmap.put(nodeIdHop, tmp);
         return;
     }
     
-    public void removeHit(byte[] nodeId) {
+    public void removeHit(ByteArray nodeId) {
         this.hmap.remove(nodeId);
         return;
     }
     
     //limiting arraylist size
-    public void addHit(InetAddress nodeIHopAddr, byte[] nodeIHopId, byte[] nodeIdDst, int hop_count) {
+    public void addHit(InetAddress nodeIHopAddr, byte[] nodeIHopId_old, byte[] nodeIdDst_old, int hop_count) {
         long now    = System.currentTimeMillis();
         Info info   = new Info(nodeIHopAddr, hop_count);
         
+        ByteArray nodeIHopId = new ByteArray(nodeIHopId_old);
+        ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
+        
+        
         if(this.hmap.containsKey(nodeIdDst)) {
-            HashMap<byte[], Info> tmpMap        = this.hmap.get(nodeIdDst);
-            byte[] index                        = null;
+            HashMap<ByteArray, Info> tmpMap        = this.hmap.get(nodeIdDst);
+            ByteArray index                        = null;
             
             if(tmpMap.size() >= config.getHitArraySize()) {
                 
@@ -75,7 +81,7 @@ public class HitCache {
                     }
                 }else {
                     
-                    for (Map.Entry<byte[], Info> entry : tmpMap.entrySet()) {
+                    for (Map.Entry<ByteArray, Info> entry : tmpMap.entrySet()) {
                         if(hop_count<=entry.getValue().hop_count) {
                             index = entry.getKey();
                         }
@@ -103,7 +109,7 @@ public class HitCache {
             
         }else{
             if(this.hmap.size() < config.getHitCacheSize()) {
-                HashMap <byte[], Info> newMap = new HashMap <byte[], Info>();
+                HashMap <ByteArray, Info> newMap = new HashMap <ByteArray, Info>();
                 newMap.put(nodeIHopId, info);
                 
                 this.hmap.put(nodeIdDst, newMap);
@@ -132,7 +138,7 @@ public class HitCache {
         int hopCount        = 0;
         
         if(this.hmap.containsKey(nodeIdDst)) {
-            HashMap <byte[], Info> tmpMap = this.hmap.get(nodeIdDst);
+            HashMap <ByteArray, Info> tmpMap = this.hmap.get(nodeIdDst);
             if(tmpMap.size()>0){
                 for(Info info : tmpMap.values()) {
                     if(info.timestamp > now) {
@@ -151,11 +157,11 @@ public class HitCache {
     void rmRoute(byte[] nodeIdSrc, byte[] nodeIdDst, InetAddress hopAddr) {
         
         if(this.hmap.containsKey(nodeIdDst)){
-            HashMap<byte[], Info> tmpArray = this.hmap.get(nodeIdDst);
+            HashMap<ByteArray, Info> tmpArray = this.hmap.get(nodeIdDst);
             if(tmpArray.containsKey(nodeIdSrc) && tmpArray.get(nodeIdSrc).nodeAddr_hop.equals(hopAddr)) {
                 tmpArray.remove(nodeIdSrc);
             }
-            this.hmap.put(nodeIdDst, tmpArray);
+            this.hmap.put(new ByteArray(nodeIdDst), tmpArray);
         }
         
     }

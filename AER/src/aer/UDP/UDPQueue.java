@@ -45,11 +45,12 @@ public class UDPQueue implements Runnable{
                     
                     if(tuple != null) this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);
                 try {
-                    this.ds.send(dp);
+                    if(this.dp != null) this.ds.send(dp);
+                    this.dp = null;
                 } catch (IOException ex) {
                     Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
                 }
-            }
+            }else return;
             
         }    
             

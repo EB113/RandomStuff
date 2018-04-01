@@ -40,6 +40,7 @@ public class Interpreter implements Runnable{
         switch(this.pdu[0]) {
             case 0x00:
                     Hello.load(this.pdu, this.id, this.origin);
+                    this.id.print();
                 break;
             case 0x01:
                     RReq.load(this.pdu, this.id, this.origin, this.control);
@@ -51,7 +52,7 @@ public class Interpreter implements Runnable{
                     RErr.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x04:
-                    Data.load(this.pdu);
+                    Data.load(this.pdu, this.id, this.origin, this.control);
                 break;
             default:
                 System.out.println("WRONG PDU TYPE!");

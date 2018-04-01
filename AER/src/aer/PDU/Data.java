@@ -5,14 +5,21 @@
  */
 package aer.PDU;
 
+import aer.Data.Node;
+import aer.miscelaneous.Controller;
+import java.net.InetAddress;
+
 /**
  *
  * @author pedro
  */
 public class Data {
 
-    public static void load(byte[] pdu) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public static void load(byte[] pdu, Node id, InetAddress origin, Controller control) {
+    
+       
     }
+    
+    
     
 }

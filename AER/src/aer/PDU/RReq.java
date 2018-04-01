@@ -100,6 +100,8 @@ public class RReq {
             byte[] reply = RRep.dumpLocal(nodeIdDst, hopCount, id, secure);
             control.pushQueueUDP(new Tuple(reply, peerAddr));
             
+        } else if(Crypto.cmpByteArray(id.getId(), nodeIdSrc)) {
+            //DO NOTHING, IM THE ORIGIN OF REQUEST
         } else {
             Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
             if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit

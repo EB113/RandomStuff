@@ -7,6 +7,7 @@ package aer.Data;
 
 //Class que Contem Informacao relativa ao Nodo
 
+import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
 import static aer.miscelaneous.Crypto.decryptString;
@@ -63,6 +64,8 @@ public class Node {
         this.rrcache    = new RemoteRequestCache(config);
         this.lrcache    = new LocalRequestCache(config);
         this.hcache     = new HitCache(config);
+        
+        System.out.println("ZonePeerNo: " + this.topo.hmap.size());
     }
     
     
@@ -150,7 +153,7 @@ public class Node {
     //Vale a pena verificar o IPV6????
     public void rmPeerZone(byte[] nodeId) {
         synchronized(this.topo){
-            this.topo.removePeer(nodeId);
+            this.topo.removePeer(new ByteArray(nodeId));
         }
     }
     
@@ -223,7 +226,7 @@ public class Node {
     public void addReqCache(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count, byte[] req_num) {
         
         if(Crypto.cmpByteArray(id, nodeIdSrc)) {
-            this.lrcache.addRequest(usedPeers, nodeHopAddr, nodeIdSrc, nodeIdDst, 0, req_num);
+            this.lrcache.addRequest(usedPeers, nodeHopAddr, nodeIdDst, 0, req_num);
         }else {
         
             //ADD HIT OF REQUEST SOURCE
@@ -305,4 +308,16 @@ public class Node {
         
         return usedPeers;
     }
+    
+    
+    
+    //DEBUGDEGBUGDEBUG
+    //DEBUGDEGBUGDEBUG
+    //DEBUGDEGBUGDEBUG
+    
+    public void print() {
+        System.out.println("Load Feito...ZonePeerNo: " + this.topo.hmap.size());
+    }
+    
+    
 }
