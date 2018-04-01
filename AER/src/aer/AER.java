@@ -41,24 +41,26 @@ public class AER {
          ListenerUDP    listenerUDP = new ListenerUDP(control,id);
          Hello          helloUDP    = new Hello(control,config,id);
          
-         Thread t_queue_UDP         = new Thread(queueUDP);
-         Thread t_listener_UDP      = new Thread(listenerUDP);
-         Thread t_emitter_UDP       = new Thread(helloUDP);
+         //Thread t_queue_UDP         = new Thread(queueUDP);
+         //Thread t_listener_UDP      = new Thread(listenerUDP);
+         //Thread t_emitter_UDP       = new Thread(helloUDP);
         
          //TCP Thread Object Init + Thread Init
-         //EmitterTCP emitterTCP      = new EmitterTCP();
-         //ListenerTCP listenerTCP    = new ListenerTCP();
+         ListenerTCP listenerTCP    = new ListenerTCP();
+         EmitterTCP emitterTCP      = new EmitterTCP();
          
-         //Thread t_emitter_TCP       = new Thread(emitterTCP);
-         //Thread t_listener_TCP      = new Thread(listenerTCP);
+         Thread t_listener_TCP      = new Thread(listenerTCP);
+         Thread t_emitter_TCP       = new Thread(emitterTCP);
          
          // TCP + UDP + WatchDog's Thread Start
         
          //t_queue_UDP.start();
-         t_listener_UDP.start();
-         t_emitter_UDP.start();
-         //t_emitter_TCP.start();
-         //t_listener_TCP.start();
+         //t_listener_UDP.start();
+         //t_emitter_UDP.start();
+         t_listener_TCP.start();
+         t_emitter_TCP.start();
+         
+         
          t_wd_zone.start();
          
           Thread.sleep(5000);
@@ -72,10 +74,11 @@ public class AER {
          
          // Thread close Wait
          //t_queue_UDP.join();
-         t_listener_UDP.join();
-         t_emitter_UDP.join();
-         //t_emitter_TCP.join();
-         //t_listener_TCP.join();
+         //t_listener_UDP.join();
+         //t_emitter_UDP.join();
+          t_listener_TCP.join();
+          t_emitter_TCP.join();
+        
          t_wd_zone.join(); //Add a way to kill Watchdog Thread!!
         
          System.out.println("Close Adhoc Node....");

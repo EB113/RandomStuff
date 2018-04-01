@@ -49,17 +49,19 @@ public class ListenerTCP implements Runnable{
         
         
         String clientSentence;
-        String capitalizedSentence;
-        ServerSocket welcomeSocket = new ServerSocket(6789);
+        //String capitalizedSentence;
+        ServerSocket welcomeSocket = new ServerSocket(9999);
 
          while (true) {
             Socket connectionSocket = welcomeSocket.accept();
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
             DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-            clientSentence = inFromClient.readLine();
-            System.out.println("Received: " + clientSentence);
-            capitalizedSentence = clientSentence.toUpperCase() + '\n';
-            outToClient.writeBytes(capitalizedSentence);
+            //clientSentence = inFromClient.readLine();
+            //System.out.println("Received: "+clientSentence);
+            //capitalizedSentence = clientSentence.toUpperCase() + '\n';
+            String News = "Noticias do Jornal Nacional Construtores dizem que são precisos mais 80 a 100 mil operários para suportar o acréscimo de produção de 4,5% previsto para este ano. Sindicatos reclamam melhores salários" + '\n';
+            //outToClient.writeBytes(capitalizedSentence);
+            outToClient.writeBytes(News);
   }
         } catch (IOException ex) {
             Logger.getLogger(ListenerTCP.class.getName()).log(Level.SEVERE, null, ex);
