@@ -16,22 +16,21 @@ import java.nio.ByteBuffer;
 import java.security.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 public class ZoneTopology {
-
     
     //Value Class
     class Info {
-        byte[]          hop_id;
-        InetAddress    hop_addr6;
+        InetAddress     hop_addr;
         float           rank;
         int             hop_dist;
         byte[]          seq_num;
         long            timestamp;
         
-        Info(InetAddress addr6, float rank, int hop_dist, byte[] seq_num) {
-            this.hop_addr6  = addr6;
+        Info(InetAddress addr, float rank, int hop_dist, byte[] seq_num) {
+            this.hop_addr   = addr;
             this.rank       = rank;
             this.hop_dist   = hop_dist;
             this.seq_num    = seq_num;
@@ -48,12 +47,12 @@ public class ZoneTopology {
 
         public int getHop_dist() {
             return hop_dist;
-        }
+        }   
 
-        public byte[] getHop_id() {
-            return hop_id;
+        public InetAddress getHop_addr() {
+            return hop_addr;
         }
-               
+        
     }
     
     HashMap <byte[], HashMap<byte[], Info>> hmap;
@@ -127,23 +126,91 @@ public class ZoneTopology {
         long now  = System.currentTimeMillis();
         
         this.hmap.forEach((k1, v1) -> {
-            v1.forEach((k2, v2) -> {
-                if(now - v2.getTimeStamp() > config.getZoneTimeDelta()) removePeerLink(k1,k2);
-            });
+            if(v1.size() > 0 ){
+                v1.forEach((k2, v2) -> {
+                    if(now - v2.getTimeStamp() > config.getZoneTimeDelta()) removePeerLink(k1,k2);
+                });
+            }else {
+                removePeer(k1);
+            }
         });
     }
     
-    public ArrayList<Tuple> getPeer(int maxHops) {
-        ArrayList<Tuple> peers = new ArrayList<>();
+    public LinkedList<Tuple> getPeers(int maxHops) {
+        LinkedList<Tuple> peers = new LinkedList<>();
         
         this.hmap.forEach((k1, v1) -> {
             v1.forEach((k2, v2) -> {
                 if(v2.hop_dist <= maxHops) {
                     Tuple tuple = new Tuple(k1, v2.hop_dist);
+                    peers.push(tuple);
                 }
             });
         });
         
         return peers;
     }
+    
+    public Tuple getPeer(byte[] nodeId) {
+        Tuple tuple = null;
+        
+        if(this.hmap.containsKey(nodeId)){
+            InetAddress peer = null;
+            int minDist = config.getZoneSize(); //MAX DIST is BORDER
+            HashMap<byte[], Info> routes = this.hmap.get(nodeId);
+            
+            for(Map.Entry<byte[], Info> pair : routes.entrySet()) {
+                if(pair.getValue().getHop_dist() < minDist) {
+                    peer    = pair.getValue().getHop_addr();
+                    minDist = pair.getValue().getHop_dist();
+                }
+            }
+            tuple = new Tuple(peer, minDist);
+        }
+        
+        return tuple;
+    }
+
+    public byte[] getNodeId(InetAddress nodeHopAddr) {
+        byte[] peerId = null;
+        
+        for(Map.Entry<byte[], HashMap<byte[], Info>> pair1 : this.hmap.entrySet()) {
+            for(Map.Entry<byte[], Info> pair2 : pair1.getValue().entrySet()) {
+                if(pair2.getValue().hop_addr.equals(nodeHopAddr)) {
+                    return pair2.getKey();
+                }
+            }
+        }
+        
+        return peerId;
+    }
+
+    //NESTE MOMENTO ESTA PARA TODOS
+    LinkedList<InetAddress> getReqPeers() {
+        LinkedList<InetAddress> ip_list = null;
+        LinkedList<Tuple> tuple_list = getPeers(1);
+        
+        if(tuple_list.size() > 0) {
+            ip_list = new LinkedList<>();
+            
+            for(Tuple tup : tuple_list) {
+                ip_list.push((InetAddress)tup.x);
+            }
+        }
+        
+        return ip_list;
+    }
+
+    //INETADDRESS PARA PREVENIR IDS REPETIDOS
+    void rmRoute(byte[] nodeIdSrc, byte[] nodeIdDst, InetAddress hopAddr) {
+        
+        if(this.hmap.containsKey(nodeIdDst)){
+            HashMap<byte[], Info> tmpArray = this.hmap.get(nodeIdDst);
+            if(tmpArray.containsKey(nodeIdSrc) && tmpArray.get(nodeIdSrc).hop_addr.equals(hopAddr)) {
+                tmpArray.remove(nodeIdSrc);
+            }
+            this.hmap.put(nodeIdDst, tmpArray);
+        }
+    }
+
 }

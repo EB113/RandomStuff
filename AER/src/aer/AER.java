@@ -26,20 +26,20 @@ public class AER {
       {
          System.out.println("Init Adhoc Node....");
          
-         Config config = new Config();
+         Config     config  = new Config();
          Controller control = new Controller(config.getQueueSize());
          
          // Node Setup
          Node id = new Node(config);
          
          //WatchDog
-         ZoneWatch wd_zone = new ZoneWatch(control, config, id);
-         Thread t_wd_zone  = new Thread(wd_zone);
+         ZoneWatch  wd_zone     = new ZoneWatch(control, config, id);
+         Thread     t_wd_zone   = new Thread(wd_zone);
          
  	 //UDP Thread Object Init + Thread Init
-         UDPQueue queueUDP          = new UDPQueue(control);
-         ListenerUDP listenerUDP    = new ListenerUDP(control,id);
-         Hello helloUDP      = new Hello(control,config,id);
+         UDPQueue       queueUDP    = new UDPQueue(control);
+         ListenerUDP    listenerUDP = new ListenerUDP(control,id);
+         Hello          helloUDP    = new Hello(control,config,id);
          
          Thread t_queue_UDP         = new Thread(queueUDP);
          Thread t_listener_UDP      = new Thread(listenerUDP);

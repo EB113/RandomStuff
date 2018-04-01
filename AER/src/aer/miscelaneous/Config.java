@@ -15,15 +15,15 @@ public class Config {
     //Configs
     int difficulty             = 1; //Num de zeros msb's no nodeId
 
-    int queueSize              = 10;
+    int queueSize              = 30;
     int zoneSize               = 2; //Tamanho da Zona
-    int zoneCacheSize          = 10; //Tamanho de nodos destinos na tabela zonetopology
-    int requestCacheSize       = 10; //Tamanhp da Cache dos Requests
-    int hitCacheSize           = 10; //Tamanho da Cache dos HIts
+    int zoneCacheSize          = 30; //Tamanho de nodos destinos na tabela zonetopology
+    int requestCacheSize       = 30; //Tamanhp da Cache dos Requests
+    int hitCacheSize           = 30; //Tamanho da Cache dos HIts
 
-    int zoneMapSize            = 3; //size per map
-    int reqArraySize           = 3; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
-    int hitArraySize           = 3;
+    int zoneMapSize            = 10; //size per map
+    int reqArraySize           = 10; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
+    int hitArraySize           = 10;
     
     long zoneTimeDelta         = 60;  //Tempo max entre peer hellos  (s)
     long reqTimeDelta          = 600; //Tempo de vida dos Requests  (s)
@@ -32,8 +32,36 @@ public class Config {
     
     long helloTimer            = 5; //Tempo de intervalos entre hellos enviados
     
+    int attempNo               = 5; //Number of attempts
+    int hopLimit               = 10; //Max Hops
+    byte security              = 0x01; //SECURITY 0X00 OFF 0X01 ON
+    
     public Config(){
     
+    }
+
+    public int getAttempNo() {
+        return attempNo;
+    }
+
+    public void setAttempNo(int attempNo) {
+        this.attempNo = attempNo;
+    }
+
+    public byte getSecurity() {
+        return security;
+    }
+
+    public void setSecurity(byte security) {
+        this.security = security;
+    }
+
+    public int getHopLimit() {
+        return hopLimit;
+    }
+
+    public void setHopLimit(int hopLimit) {
+        this.hopLimit = hopLimit;
     }
 
     public int getZoneCacheSize() {

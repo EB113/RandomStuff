@@ -7,6 +7,7 @@ package aer.UDP;
 
 import aer.Data.Node;
 import aer.miscelaneous.Controller;
+import aer.miscelaneous.Crypto;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -55,8 +56,7 @@ public class ListenerUDP implements Runnable{
 
                     this.dp = new DatagramPacket(b1, b1.length);
                     this.ds.receive(dp);
-                    System.out.println("Listener: " + dp.getData());
-                    new Interpreter(control, this.id, dp.getData(), dp.getAddress());
+                    (new Thread(new Interpreter(control, this.id, dp.getData(), dp.getAddress()))).start();
                     
                 } catch (SocketException ex) {
                     //Logger.getLogger(ListenerUDP.class.getName()).log(Level.SEVERE, null, ex);

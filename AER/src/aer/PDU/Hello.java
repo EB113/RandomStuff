@@ -3,42 +3,44 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package aer.miscelaneous;
+package aer.PDU;
 
 import aer.Data.Node;
+import aer.miscelaneous.Tuple;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 /**
  *
  * @author pedro
  */
-public class Datagram {
-    
-    public static byte[] dumpHello(Node node) {
+public class Hello {
+    public static byte[] dump(Node node) {
         
         byte[] id               = node.getId();
-        byte[] seq              = node.getSeq();
-        ArrayList<Tuple> peers  = node.getZonePeersIds(1);
-        int zoneSize            = node.config.zoneSize;
+        byte[] seq              = node.getSeqNum();
+        LinkedList<Tuple> peers = node.getZonePeersIds(1);
+        int zoneSize            = node.config.getZoneSize();
         
         int peerslen = 0, counter=0, limit = 0, it = 0;
         byte[] tmp = null;
         
+        if(peers.size() == 0  )
         //PDU TOTAL SIZE
         if(zoneSize == 2)   for(Tuple i: peers) peerslen+=((byte[])(i.x)).length; //SEM HOP DIST
         else for(Tuple i: peers) peerslen+=(((byte[])(i.x)).length + 4); //COM HOP DIST
-        int len = 1 + 4 + 4 + id.length + 4 + peerslen; //PDUTYPE  + ZONESIZE + NODEID + SEQNUM + PEERS
+        int len = 1 + 4 + 4 + id.length + 4 + peerslen; //PDUTYPE+PDUTOTALSIZE+ZONESIZE+NODEID+SEQNUM+PEERS
         byte[] raw = new byte[len];
         
         //PDU TYPE
         raw[counter++] = 0x00;
         limit++;
         
-        //ZONE SIZE
+        //PDU TOTAL SIZE
         ByteBuffer buffer = ByteBuffer.allocate(4);
-        buffer.putInt(zoneSize);
+        buffer.putInt(len);
         tmp = buffer.array();
         limit+=4;
         for(; counter<limit; counter++) {
@@ -46,10 +48,9 @@ public class Datagram {
         }
         it = 0;
         
-        //PDU TOTAL SIZE
+        //ZONE SIZE
         buffer.clear();
-        buffer = ByteBuffer.allocate(4);
-        buffer.putInt(len);
+        buffer.putInt(zoneSize);
         tmp = buffer.array();
         limit+=4;
         for(; counter<limit; counter++) {
@@ -71,7 +72,7 @@ public class Datagram {
         }
         it = 0;
         
-        if(node.config.zoneSize == 2){ //SEM HOP LEN
+        if(zoneSize == 2){ //SEM HOP LEN
             //PEERS ID ARRAY
             for(Tuple entry: peers) {
                 limit+=((byte[])(entry.x)).length;
@@ -86,7 +87,6 @@ public class Datagram {
                 
                 //HOP DIST
                 buffer.clear();
-                buffer = ByteBuffer.allocate(4);
                 buffer.putInt((int)(entry.y));
                 tmp = buffer.array();
                 
@@ -106,7 +106,7 @@ public class Datagram {
         return raw;
     }
     
-    public static void loadHello(byte[] raw, Node id, InetAddress origin) {
+    public static void load(byte[] raw, Node id, InetAddress origin) {
         
         int counter             = 1, limit = 1, it = 0; //Auxiliary variables
         int zoneSize            = 0, totalSize = 0, hopDist = 0; //Obtained Variables
@@ -116,20 +116,23 @@ public class Datagram {
         ArrayList<Tuple> tuple  = new ArrayList<>();
         Tuple t                 = null;
         
-        //Get ZoneSize
+        //GET PDU TOTAL SIZE
         limit+=4;
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
-        ByteBuffer wrapped = ByteBuffer.wrap(tmp);
-        zoneSize = wrapped.getInt();
+        
+        ByteBuffer  wrapped = ByteBuffer.wrap(tmp);
+        totalSize = wrapped.getInt();
         it = 0;
         
-        //GET PDU TOTAL SIZE
+        //Get ZoneSize
         limit+=4;
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
         wrapped.clear();
         wrapped = ByteBuffer.wrap(tmp);
-        totalSize = wrapped.getInt();
+        zoneSize = wrapped.getInt();
         it = 0;
+        
+        
         
         //GET NODEID ORIGIN
         limit+=32;
@@ -174,31 +177,7 @@ public class Datagram {
                 tuple.add(t);
             }
         }
-        id.addPeerZone(nodeId, origin, seq_num, tuple);
+        
+        if(tuple.size() > 0)    id.addPeerZone(nodeId, origin, seq_num, tuple);
     }
-    
-    public static void dumpRReq() {
-    }
-    
-    public static void loadRReq(byte[] raw) { 
-    }
-    
-    public static void dumpRRep() {
-    }
-    
-    public static void loadRRep(byte[] raw) { 
-    }
-    
-    public static void dumpRErr() {
-    }
-    
-    public static void loadRErr(byte[] raw) { 
-    }
-    
-    public static void dumpData() {
-    }
-    
-    public static void loadData(byte[] raw) { 
-    }
-    
 }

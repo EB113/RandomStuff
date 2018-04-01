@@ -8,7 +8,7 @@ package aer.UDP;
 import aer.Data.Node;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Controller;
-import aer.miscelaneous.Datagram;
+import aer.miscelaneous.Crypto;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -46,8 +46,8 @@ public class Hello implements Runnable{
             }
             if(this.bool){
                 try {
-                    byte[] raw = Datagram.dumpHello(id);
-                    System.out.println("Hello: " + raw);
+                    byte[] raw = aer.PDU.Hello.dump(id);
+                    System.out.println("Hello: " + Crypto.toHex(raw));
                     this.dp = new DatagramPacket(raw, raw.length, InetAddress.getByName("127.0.0.1"), 9999);//FF02::1
                     this.ds.send(dp);
                     

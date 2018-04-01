@@ -7,10 +7,13 @@ package aer.UDP;
 
 import aer.Data.Node;
 import aer.miscelaneous.Controller;
-import aer.miscelaneous.Datagram;
+import aer.miscelaneous.Crypto;
 import java.net.InetAddress;
-import java.util.ArrayList;
-
+import aer.PDU.Hello;
+import aer.PDU.Data;
+import aer.PDU.RErr;
+import aer.PDU.RRep;
+import aer.PDU.RReq;
 /**
  *
  * @author pedro
@@ -33,22 +36,22 @@ public class Interpreter implements Runnable{
     
     @Override
     public void run() {
-        
+        System.out.println("--->PDU: " + Crypto.toHex(this.pdu));
         switch(this.pdu[0]) {
             case 0x00:
-                    Datagram.loadHello(this.pdu, this.id, this.origin);
+                    Hello.load(this.pdu, this.id, this.origin);
                 break;
             case 0x01:
-                    Datagram.loadRReq(this.pdu);
+                    RReq.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x02:
-                    Datagram.loadRRep(this.pdu);
+                    RRep.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x03:
-                    Datagram.loadRErr(this.pdu);
+                    RErr.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x04:
-                    Datagram.loadData(this.pdu);
+                    Data.load(this.pdu);
                 break;
             default:
                 System.out.println("WRONG PDU TYPE!");
