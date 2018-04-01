@@ -47,7 +47,7 @@ public class Hello implements Runnable{
             if(this.bool){
                 try {
                     byte[] raw = aer.PDU.Hello.dump(id);
-                    this.dp = new DatagramPacket(raw, raw.length, InetAddress.getByName("127.0.0.1"), 9999);//FF02::1
+                    this.dp = new DatagramPacket(raw, raw.length, InetAddress.getByName("FF02::1"), 9999);
                     this.ds.send(dp);
                     
                 } catch (SocketException ex) {
