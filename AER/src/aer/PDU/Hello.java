@@ -6,6 +6,8 @@
 package aer.PDU;
 
 import aer.Data.Node;
+import aer.miscelaneous.ByteArray;
+import aer.miscelaneous.Crypto;
 import aer.miscelaneous.Tuple;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
@@ -22,14 +24,14 @@ public class Hello {
         byte[] id               = node.getId();
         byte[] seq              = node.getSeqNum();
         LinkedList<Tuple> peers = node.getZonePeersIds(1);
-        int zoneSize            = node.config.getZoneSize();
+        int zoneSizeHello       = node.config.getZoneSizeHello();
         
         int peerslen = 0, counter=0, limit = 0, it = 0;
         byte[] tmp = null;
         
         
         //PDU TOTAL SIZE
-        if(zoneSize == 2)   for(Tuple i: peers) peerslen+=((byte[])(i.x)).length; //SEM HOP DIST
+        if(zoneSizeHello == 1)   for(Tuple i: peers) peerslen+=((byte[])(i.x)).length; //SEM HOP DIST
         else for(Tuple i: peers) peerslen+=(((byte[])(i.x)).length + 4); //COM HOP DIST
         int len = 1 + 4 + 4 + id.length + 4 + peerslen; //PDUTYPE+PDUTOTALSIZE+ZONESIZE+NODEID+SEQNUM+PEERS
         byte[] raw = new byte[len];
@@ -50,7 +52,7 @@ public class Hello {
         
         //ZONE SIZE
         buffer.clear();
-        buffer.putInt(zoneSize);
+        buffer.putInt(zoneSizeHello);
         tmp = buffer.array();
         limit+=4;
         for(; counter<limit; counter++) {
@@ -72,7 +74,7 @@ public class Hello {
         }
         it = 0;
         
-        if(zoneSize == 2){ //SEM HOP LEN
+        if(zoneSizeHello == 1){ //SEM HOP LEN
             //PEERS ID ARRAY
             for(Tuple entry: peers) {
                 limit+=((byte[])(entry.x)).length;
@@ -109,7 +111,7 @@ public class Hello {
     public static void load(byte[] raw, Node id, InetAddress origin) {
         
         int counter             = 1, limit = 1, it = 0; //Auxiliary variables
-        int zoneSize            = 0, totalSize = 0, hopDist = 0; //Obtained Variables
+        int zoneSizeHello       = 0, totalSize = 0, hopDist = 0; //Obtained Variables
         byte[] tmp              = new byte[4];
         byte[] seq_num          = new byte[4];
         byte[] nodeId           = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
@@ -129,10 +131,8 @@ public class Hello {
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
         wrapped.clear();
         wrapped = ByteBuffer.wrap(tmp);
-        zoneSize = wrapped.getInt();
+        zoneSizeHello = wrapped.getInt();
         it = 0;
-        
-        
         
         //GET NODEID ORIGIN
         limit+=32;
@@ -144,40 +144,43 @@ public class Hello {
         for(;counter<limit; counter++) seq_num[it++] = raw[counter];
         it = 0;
         
-        //GET PEERS DATA
-        if(zoneSize == 2){
-            limit=totalSize;
-            for(;counter<limit;){
-                while(it<32){
-                    nodeId[it++] = raw[counter++];
-                }
-                it = 0;
-                t = new Tuple(1, nodeId.clone()); //Sera que tenho que criar um novo ou o java ja faz o clone???
-                tuple.add(t);
-            }
-        }else{
-            limit=totalSize;
-            for(;counter<limit;){
-                //GET HOP DIST
-                while(it<4){
-                    tmp[it++] = raw[counter++];
-                }
-                it = 0;
-                wrapped.clear();
-                wrapped = ByteBuffer.wrap(tmp);
-                hopDist = wrapped.getInt();
-                
-                //GET NODE ID
-                while(it<32){
-                    nodeId[it++] = raw[counter++];
-                }
-                it = 0;
-                
-                t = new Tuple(hopDist, nodeId.clone()); //Sera que tenho que criar um novo ou o java ja faz o clone???
-                tuple.add(t);
-            }
-        }
         
-        id.addPeerZone(nodeId, origin, seq_num, tuple);
+        if(!(new ByteArray(id.getId())).equals(new ByteArray(nodeId))){
+            //GET PEERS DATA
+            if(zoneSizeHello == 1){
+                limit=totalSize;
+                for(;counter<limit;){
+                    while(it<32){
+                        nodeId[it++] = raw[counter++];
+                    }
+                    it = 0;
+                    t = new Tuple(2, nodeId.clone()); //Sera que tenho que criar um novo ou o java ja faz o clone???
+                    tuple.add(t);
+                }
+            }else{
+                limit=totalSize;
+                for(;counter<limit;){
+                    //GET HOP DIST
+                    while(it<4){
+                        tmp[it++] = raw[counter++];
+                    }
+                    it = 0;
+                    wrapped.clear();
+                    wrapped = ByteBuffer.wrap(tmp);
+                    hopDist = wrapped.getInt();
+
+                    //GET NODE ID
+                    while(it<32){
+                        nodeId[it++] = raw[counter++];
+                    }
+                    it = 0;
+
+                    t = new Tuple(hopDist+1, nodeId.clone()); //Sera que tenho que criar um novo ou o java ja faz o clone???
+                    tuple.add(t);
+                }
+            }
+
+            id.addPeerZone(nodeId, origin, seq_num, tuple);
+        }
     }
 }

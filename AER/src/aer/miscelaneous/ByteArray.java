@@ -14,7 +14,7 @@ public class ByteArray {
     private byte[] data;
 
     public ByteArray(byte[] data) {
-        this.data = data;
+        this.data = Crypto.clone(data);
     }
 
     public byte[] getData() {

@@ -54,6 +54,7 @@ public class Node {
     private LocalRequestCache lrcache;
     
     public Node(Config config) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
+        
         //Configs
         this.config = config;
         //Node Identity
@@ -65,6 +66,7 @@ public class Node {
         this.lrcache    = new LocalRequestCache(config);
         this.hcache     = new HitCache(config);
         
+        System.out.println("NodeId: " + Crypto.toHex(this.id));
         System.out.println("ZonePeerNo: " + this.topo.hmap.size());
     }
     
@@ -85,38 +87,33 @@ public class Node {
     }
     
     public byte[] getPubKey() {
-        return this.pubk.getEncoded();
+        byte[] outPubK = null;
+        
+        if(this.pubk !=null)
+            synchronized(this.pubk){
+                outPubK = this.pubk.getEncoded();
+            }
+        
+        return outPubK;
     }
     public byte[] getId() {
-        return this.id;
+        byte[] outId = null;
+        
+        if(this.id != null){
+            synchronized(this.id){
+                outId = this.id;
+            }
+        }
+        return outId;
     }
     public void genKeyPair() throws NoSuchAlgorithmException, NoSuchProviderException, InvalidAlgorithmParameterException {
         KeyPair pair    = Crypto.genValidPair(this.config.getDifficulty());
+        
         this.privk      = pair.getPrivate();
         this.pubk       = pair.getPublic();
         this.id         = Crypto.getId(this.pubk.getEncoded());
     }
-    public void test() throws NoSuchAlgorithmException, NoSuchProviderException, InvalidAlgorithmParameterException{
-        KeyPair pair1       = Crypto.genValidPair(1);
-        PrivateKey privk1   = pair1.getPrivate();
-        PublicKey pubk1     = pair1.getPublic();
-        byte[] id1          = Crypto.getId(pubk1.getEncoded());
-        
-        KeyPair pair2       = Crypto.genValidPair(1);
-        PrivateKey privk2   = pair2.getPrivate();
-        PublicKey pubk2     = pair2.getPublic();
-        byte[] id2          = Crypto.getId(pubk2.getEncoded());
-        
-        SecretKey k1 = generateSharedSecret(privk1, pubk2);
-        SecretKey k2 = generateSharedSecret(privk2, pubk1);
-        
-        if(k1.getEncoded().equals(k2)) System.out.println("ola"); else System.out.println("adeus");
-        
-        System.out.println(toHex(k1.getEncoded()));
-        System.out.println(toHex(k2.getEncoded()));
-        
-        System.out.println(decrypt(k1, encrypt(k2, "ola")));
-    }
+    
     //-----------------------------------------
     //-------------------END------------------
     //-----------------------------------------
@@ -128,56 +125,80 @@ public class Node {
     
     //---------NODE CLASS----------------
     void incrSeq(){
-        this.seq_num++;
+        if(this.seq_num != null)
+            synchronized(this.seq_num){
+                this.seq_num++;
+            }
     }
     void incrReq(){
-        this.req_num++;
+        if(this.req_num != null)
+            synchronized(this.req_num){
+                this.req_num++;
+            }
     }
     
     boolean compare_seq(byte[] seq) {
+        Boolean bool = false;
+        
         //Validar Input etc
         int new_seq = ByteBuffer.wrap(seq).getInt();
-        
-        if(new_seq>this.seq_num) return true;
-        else return false;
+        if(this.seq_num != null)
+            synchronized(this.seq_num){
+                if(new_seq>this.seq_num) bool =  true;
+            }
+        return bool;
     }
     
     //-----------ZONETOPOLOGY CLASS--------------
     public void addPeerZone(byte[] nodeId, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
         //CHECK SEQUNCE NUMBER
-        synchronized(this.topo){
-            this.topo.addPeerZone(nodeId, addr6, seq_num, peers);
-        }
+        if(this.topo != null)
+            synchronized(this.topo){
+                this.topo.addPeerZone(this.id, nodeId, addr6, seq_num, peers);
+            }
+        return;
     }
     
     //Vale a pena verificar o IPV6????
     public void rmPeerZone(byte[] nodeId) {
-        synchronized(this.topo){
-            this.topo.removePeer(new ByteArray(nodeId));
-        }
+        if(this.topo != null)
+            synchronized(this.topo){
+                this.topo.removePeer(new ByteArray(nodeId));
+            }
+        return;
     }
     
     //GarbageCollect
     public void gcPeerZone() {
-        synchronized(this.topo){
-            this.topo.gcPeer();
-        }
+        if(this.topo != null)
+            synchronized(this.topo){
+                this.topo.gcPeer();
+            }
+        return;
     }
     
     //-----------HITCACHE CLASS-----------
     //GarbageCollect
     public void gcHitCache() {
-        synchronized(this.hcache){
-            this.hcache.gcHit();
-        }
+        if(this.hcache != null)
+            synchronized(this.hcache){
+                this.hcache.gcHit();
+            }
+        return;
     }
     
     //-------------REQUESTCACHE CLASS----------
     //GarbageCollect
     public void gcReqCache() {
-        synchronized(this.rrcache){
-            this.rrcache.gcReq();
-        }
+        if(this.rrcache != null)
+            synchronized(this.rrcache){
+                this.rrcache.gcReq();
+            }
+        if(this.rrcache != null)
+            synchronized(this.rrcache){
+                this.lrcache.gcReq();
+            }
+        return;
     }
     //-----------------------------------------
     //-------------------END------------------
@@ -191,110 +212,216 @@ public class Node {
     //---------NODE CLASS-----------
     public byte[] getSeqNum() {
         ByteBuffer buffer = ByteBuffer.allocate(4);
-        buffer.putInt(this.seq_num);
+        if(this.seq_num != null)
+            synchronized(this.seq_num){
+                buffer.putInt(this.seq_num);
+            }
         
         return buffer.array();
     }   
     
     public byte[] getReqNum() {
         ByteBuffer buffer = ByteBuffer.allocate(4);
-        buffer.putInt(this.req_num);
+        if(this.req_num != null)
+            synchronized(this.req_num){
+                buffer.putInt(this.req_num);
+            }
         
         return buffer.array();
     }
     
     //---------ZONETOPOLOGY CLASS-----------
     //Get Peers in Zone max distance = hops
+    //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!
     public LinkedList<Tuple> getZonePeersIds(int maxHops) {
-        return this.topo.getPeers(maxHops);
+        LinkedList<Tuple> out = null;
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                out = this.topo.getPeers(maxHops);
+            }
+        
+        return out;
     }
     //-----------------------------------------
     //-------------------END------------------
     //-----------------------------------------
     
     
-    
+    //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!
     public Tuple getZonePeer(byte[] nodeIdDst) {
-        return this.topo.getPeer(nodeIdDst);
+        Tuple tuple = null;
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                tuple = this.topo.getPeer(nodeIdDst);
+            }
+        
+        return tuple;
     }
 
     public void addHitCache(InetAddress nodeHopAddr, byte[] nodeHopId, byte[] nodeIdDst , int hop_count) {
         //ADD HIT OF REQUEST SOURCE
-        this.hcache.addHit(nodeHopAddr, nodeHopId, nodeIdDst, hop_count);
+        if(this.hcache != null)
+            synchronized(this.hcache){
+                this.hcache.addHit(nodeHopAddr, nodeHopId, nodeIdDst, hop_count);
+            }
     }
     
     public void addReqCache(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count, byte[] req_num) {
         
         if(Crypto.cmpByteArray(id, nodeIdSrc)) {
-            this.lrcache.addRequest(usedPeers, nodeHopAddr, nodeIdDst, 0, req_num);
+            if(this.lrcache != null)
+                synchronized(this.lrcache){
+                    this.lrcache.addRequest(usedPeers, nodeHopAddr, nodeIdDst, 0, req_num);
+                }
         }else {
         
             //ADD HIT OF REQUEST SOURCE
             addHitCache(nodeHopAddr, nodeIdSrc, nodeIdDst, hop_count);
-            //ADD REQUEST
-            this.rrcache.addRequest(usedPeers, nodeHopAddr, nodeIdSrc, nodeIdDst, req_num);
+            if(this.rrcache != null)
+                synchronized(this.rrcache){
+                    //ADD REQUEST
+                    this.rrcache.addRequest(usedPeers, nodeHopAddr, nodeIdSrc, nodeIdDst, req_num);
+                }
         }
         
     }
 
     public byte[] getNodeId(InetAddress nodeHopAddr) {
-        return this.topo.getNodeId(nodeHopAddr);
+        byte[] out = null;
+        
+        if(this.topo != null)
+                synchronized(this.topo){
+                    out = this.topo.getNodeId(nodeHopAddr);
+                }
+        
+        return out;
     }
 
     public InetAddress rmReqCache(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
-        return this.rrcache.rmReq(nodeIdDst, nodeIdSrc, req_num);
+        InetAddress reqPeerAddr = null;
+    
+        if(this.rrcache != null)
+            synchronized(this.rrcache){
+                reqPeerAddr = this.rrcache.rmReq(nodeIdDst, nodeIdSrc, req_num);
+            }
+        
+        return reqPeerAddr;
     }
 
     public Tuple getHitPeer(byte[] nodeIdDst) {
-        return this.hcache.getHit(nodeIdDst);
+        Tuple out = null;
+        
+        if(this.hcache != null)
+            synchronized(this.hcache){
+                out = this.hcache.getHit(nodeIdDst);
+            }
+                
+        return out;
     }
-
+    
+    //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!   
     public LinkedList<InetAddress> getReqPeers() {
-        return this.topo.getReqPeers();
+        LinkedList<InetAddress> out = null;
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                out = this.topo.getReqPeers();
+            }
+        
+        return out;
     }
 
     public byte[] getLocalReqTarget(byte[] req_num) {
-        return this.lrcache.getReqTarget(req_num);
+        byte[] out = null;
+
+        if(this.lrcache != null)
+            synchronized(this.lrcache){
+                out = this.lrcache.getReqTarget(req_num);
+            }
+        
+        return out;
     }
 
     public byte[] getRemoteReqTarget(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
-        return this.rrcache.getReqTarget(nodeIdSrc, nodeIdDst, req_num);
+        byte[] out = null;
+
+        if(this.rrcache != null)
+            synchronized(this.rrcache){
+                out = this.rrcache.getReqTarget(nodeIdSrc, nodeIdDst, req_num);
+            }
+        
+        return out;
+        
     }
     
     public LinkedList<InetAddress> getLocalExcludedNodes(byte[] nodeIdDst, byte[] req_num) {
+        LinkedList<InetAddress> excludedNodes = null;
         
-        LinkedList<InetAddress> includedNodes = this.lrcache.getIncludedNodes(nodeIdDst, req_num);
-        LinkedList<Tuple> totalNodes = getZonePeersIds(1);
-        LinkedList<InetAddress> excludedNodes = new LinkedList<>();
+        LinkedList<InetAddress> includedNodes = null;
+        if(this.lrcache != null)
+            synchronized(this.lrcache){
+                includedNodes = this.lrcache.getIncludedNodes(nodeIdDst, req_num);
+            }
         
-        for(Tuple tuple : totalNodes) {
-            if(!includedNodes.contains(id)) excludedNodes.push((InetAddress)tuple.x);
+        if(includedNodes != null) {
+            LinkedList<Tuple> totalNodes = getZonePeersIds(1);
+            excludedNodes = new LinkedList<>();
+
+            for(Tuple tuple : totalNodes) {
+                if(!includedNodes.contains(id)) excludedNodes.push((InetAddress)tuple.x);
+            }
         }
-        
+
         return excludedNodes;
     }
 
     public LinkedList<InetAddress> getRemoteExcludedNodes(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+        LinkedList<InetAddress> excludedNodes = null;
         
-        LinkedList<InetAddress> includedNodes = this.rrcache.getIncludedNodes(nodeIdSrc, nodeIdDst, req_num);
-        LinkedList<Tuple> totalNodes = getZonePeersIds(1);
-        LinkedList<InetAddress> excludedNodes = new LinkedList<>();
+        LinkedList<InetAddress> includedNodes = null;
         
-        for(Tuple tuple : totalNodes) {
-            if(!includedNodes.contains(id)) excludedNodes.push((InetAddress)tuple.x);
+        if(this.rrcache != null)
+            synchronized(this.rrcache){
+                includedNodes = this.rrcache.getIncludedNodes(nodeIdSrc, nodeIdDst, req_num);
+            }
+        
+        if(includedNodes != null) {
+            LinkedList<Tuple> totalNodes = getZonePeersIds(1);
+            excludedNodes = new LinkedList<>();
+            
+            for(Tuple tuple : totalNodes) {
+                if(!includedNodes.contains(id)) excludedNodes.push((InetAddress)tuple.x);
+            }
         }
         
         return excludedNodes;
     }
 
     public InetAddress getLocalReqAddr(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
-        return this.rrcache.getReqAddr(nodeIdDst, nodeIdSrc, req_num);
+        InetAddress out = null;
+        
+        if(this.rrcache != null)
+            synchronized(this.rrcache){
+                out = this.rrcache.getReqAddr(nodeIdDst, nodeIdSrc, req_num);
+            }
+        
+        return out;
     }
 
     //REMOVER ROUTE NA HITCACHE OU ZONETOPOLOGY
     public void rmHit(byte[] nodeIdSrc, byte[] nodeIdDst, InetAddress hopAddr) {
-        this.topo.rmRoute(nodeIdSrc, nodeIdDst, hopAddr);
-        this.hcache.rmRoute(nodeIdSrc, nodeIdDst, hopAddr);
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                this.topo.rmRoute(nodeIdSrc, nodeIdDst, hopAddr);
+            }
+        
+        if(this.hcache != null)
+            synchronized(this.hcache){
+                this.hcache.rmRoute(nodeIdSrc, nodeIdDst, hopAddr);
+            }
     }
 
     public LinkedList<InetAddress> getExcludedNodes(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
@@ -316,7 +443,11 @@ public class Node {
     //DEBUGDEGBUGDEBUG
     
     public void print() {
-        System.out.println("Load Feito...ZonePeerNo: " + this.topo.hmap.size());
+        if(this.topo != null)
+            synchronized(this.topo){
+                System.out.println("Load Feito...ZonePeerNo: " + this.topo.hmap.size());
+                this.topo.printPeers();
+            }
     }
     
     

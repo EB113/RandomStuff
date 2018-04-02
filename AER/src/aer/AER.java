@@ -63,7 +63,9 @@ public class AER {
          
          t_wd_zone.start();
          
-         Thread.sleep(5000);
+         Thread.sleep(120000);
+         
+         
          
          synchronized(control){
              control.setUDPFlag(false);

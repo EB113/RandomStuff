@@ -10,6 +10,7 @@ import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
 import java.net.InetAddress;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 
@@ -100,6 +101,44 @@ public class LocalRequestCache {
         }    
         
         return usedPeers;
+    }
+
+    public Object removeRequest(ByteArray nodeId) {
+        return this.hmap.remove(nodeId);
+    }
+    
+    public void gcReq() {
+        long now  = System.currentTimeMillis();
+        
+        Iterator<Map.Entry<ByteArray, LinkedList<Info>>> iter1 = this.hmap.entrySet().iterator();
+        
+        while (iter1.hasNext()) {
+            Map.Entry<ByteArray, LinkedList<Info>>entry1 = iter1.next();
+            
+            if(entry1.getValue().size() > 0) {
+                
+                entry1.getValue().removeIf(entry2 -> (now - entry2.getTimeStamp() > config.getReqTimeDelta()));
+                
+            } else iter1.remove();
+            
+        }
+        
+        
+        //ConcurrentModificationException
+        /*
+        
+        // HashMap <ByteArray, LinkedList<Info>> hmap;
+        for(Map.Entry<ByteArray, LinkedList<Info>> pair1 : this.hmap.entrySet()) {
+            for(Info i : pair1.getValue()) {
+                if(now - i.getTimeStamp()>config.getReqTimeDelta()) removeRequest(pair1.getKey());
+            }
+        }
+        
+        this.hmap.forEach((k, v) -> {
+            for(Info i : v) {
+                if(now - i.getTimeStamp()>config.getReqTimeDelta()) removeRequest(k);
+            }
+        });*/
     }
     
 }

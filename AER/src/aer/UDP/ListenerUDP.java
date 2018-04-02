@@ -34,8 +34,9 @@ public class ListenerUDP implements Runnable{
     public ListenerUDP(Controller control, Node id) {
         this.control    = control;
         this.id         = id;
-        this.bool       = this.control.getUDPFlag().get();
-        
+        synchronized(this.control){
+            this.bool       = this.control.getUDPFlag().get();
+        }
         try {
             this.ds         = new DatagramSocket(9999);
             this.ds.setSoTimeout(1000);
@@ -57,7 +58,12 @@ public class ListenerUDP implements Runnable{
 
                     this.dp = new DatagramPacket(b1, b1.length);
                     this.ds.receive(dp);
-                    (new Thread(new Interpreter(control, this.id, dp.getData(), dp.getAddress()))).start();
+                    
+                    //NEW PDU
+                    byte[] data = new byte[dp.getLength()];
+                    System.arraycopy(dp.getData(), dp.getOffset(), data, 0, dp.getLength());
+                    
+                    (new Thread(new Interpreter(control, this.id, data, dp.getAddress()))).start();
                     
                 } catch (SocketException ex) {
                     //Logger.getLogger(ListenerUDP.class.getName()).log(Level.SEVERE, null, ex);

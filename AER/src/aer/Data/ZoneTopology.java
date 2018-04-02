@@ -17,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.security.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 
@@ -65,7 +66,7 @@ public class ZoneTopology {
     }
     
     //RANKRANKRANK??? Muita optimizacao por fazer nas pesquisas e insercoes
-    public void addPeerZone(byte[] nodeId_old, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
+    public void addPeerZone(byte[] myid, byte[] nodeId_old, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
         long        now         = System.currentTimeMillis();
         ByteArray   peerId      = null;
         int         peerDist    = 0;
@@ -74,7 +75,7 @@ public class ZoneTopology {
         ByteArray   nodeId      = new ByteArray(nodeId_old);
         
         //ADD HELLO OWNER
-        if(!this.hmap.containsKey(nodeId)){
+        if(!this.hmap.containsKey(nodeId) && this.hmap.size() < config.getZoneCacheSize()){
             
             HashMap<ByteArray, Info> tmp2 = new HashMap<>();
             info = new Info(addr6, 0, 1, seq_num);
@@ -86,17 +87,18 @@ public class ZoneTopology {
         //ADD PEERS
         for(Tuple peer: peers) {
             peerId      = new ByteArray((byte[])peer.y);
-            peerDist    = (int)peer.x;
-            info = new Info(addr6, 0, peerDist, seq_num);
+            peerDist    = ((int)peer.x);
+            info        = new Info(addr6, 0, peerDist, seq_num);
             
             if(this.hmap.containsKey(peerId)) {//Se ja tem o peer na tabela
                 HashMap<ByteArray, Info> tmp1 = this.hmap.get(peerId);
                 
                 if(tmp1.containsKey(nodeId)){//se ja tem o hop verificar distancias... OBS:problema relativo a TimeStamp podemos estar a nao inserir algo mais recente
-                    if(tmp1.get(nodeId).hop_dist > peerDist) {
+                    if(tmp1.get(nodeId).hop_dist >= peerDist) {
                         tmp1.put(nodeId, info);
+                        this.hmap.put(peerId, tmp1);
                     }
-                }else if (tmp1.size() < config.getZoneMapSize()){//se nao tem o hop e caso exista espaco adicionar
+                }else if(tmp1.size() < config.getZoneMapSize()){//se nao tem o hop e caso exista espaco adicionar
                     tmp1.put(nodeId, info);
                     this.hmap.put(peerId, tmp1);
                 }else {//se nao tem o hop e nao ha espaco retirar hop com dist mais longa
@@ -108,13 +110,13 @@ public class ZoneTopology {
                             maxDist     = entry.getValue().hop_dist;
                         }
                     }
-                    if(maxDist >= peerDist && curNodeId != null) {
+                    if(curNodeId != null && maxDist >= peerDist) {
                         tmp1.remove(curNodeId);
                         tmp1.put(nodeId, info);
                         this.hmap.put(peerId, tmp1);
                     }
                 }
-            }else {//Se nao tem o peer na tabela
+            }else if(!peerId.equals(new ByteArray(myid)) && this.hmap.size() < config.getZoneCacheSize()){//Se nao tem o peer na tabela 
                 HashMap<ByteArray, Info> tmp2 = new HashMap<>();
                 info = new Info(addr6, 0, peerDist, seq_num);
 
@@ -137,6 +139,31 @@ public class ZoneTopology {
     public void gcPeer() {
         long now  = System.currentTimeMillis();
         
+        Iterator<Map.Entry<ByteArray, HashMap<ByteArray, Info>>> iter1 = this.hmap.entrySet().iterator();
+        
+        while (iter1.hasNext()) {
+            Map.Entry<ByteArray, HashMap<ByteArray, Info>> entry1 = iter1.next();
+            
+            if(entry1.getValue().size() > 0) {
+                //SE PASSOU TEMPO OU NAO TENHO O HOP
+                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getZoneTimeDelta()) || !this.hmap.containsKey(entry2.getKey()));
+                
+            } else iter1.remove();
+            
+        }
+        
+        //ConcurrentModificationException
+        /*
+        for(Map.Entry<ByteArray, HashMap<ByteArray, Info>> pair1 : this.hmap.entrySet()) {
+            if(pair1.getValue().size() > 0) {
+                for(Map.Entry<ByteArray, Info> pair2 : pair1.getValue().entrySet()) {
+
+                    if(now - pair2.getValue().getTimeStamp() > config.getZoneTimeDelta()) removePeerLink(pair1.getKey(),pair2.getKey());
+                }
+            }else removePeer(pair1.getKey());
+        }*/
+        
+        /*
         this.hmap.forEach((k1, v1) -> {
             if(v1.size() > 0 ){
                 v1.forEach((k2, v2) -> {
@@ -145,7 +172,7 @@ public class ZoneTopology {
             }else {
                 removePeer(k1);
             }
-        });
+        });*/
     }
     
     public LinkedList<Tuple> getPeers(int maxHops) {
@@ -226,6 +253,17 @@ public class ZoneTopology {
             }
             this.hmap.put(nodeIdDst, tmpArray);
         }
+    }
+    
+    ArrayList<byte[]> printPeers() {
+        ArrayList<byte[]> out = new ArrayList<>();
+        
+        for(ByteArray peer : this.hmap.keySet()) {
+            System.out.print("|" + Crypto.toHex(peer.getData()) + "|");
+        }
+        
+        System.out.println("");
+        return out;
     }
 
 }

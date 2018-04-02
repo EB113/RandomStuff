@@ -28,7 +28,9 @@ public class UDPQueue implements Runnable{
     
     public UDPQueue(Controller control) throws SocketException {
         this.control    = control;
-        this.bool       = this.control.getUDPFlag().get();
+        synchronized(this.control){
+            this.bool       = this.control.getUDPFlag().get();
+        }
         this.tuple      = null;
         this.ds         = new DatagramSocket();
     }

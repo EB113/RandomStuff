@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 
@@ -120,6 +121,30 @@ public class HitCache {
     public void gcHit() {
         long now  = System.currentTimeMillis();
         
+        Iterator<Map.Entry<ByteArray, HashMap<ByteArray, Info>>> iter1 = this.hmap.entrySet().iterator();
+        
+        while (iter1.hasNext()) {
+            Map.Entry<ByteArray, HashMap<ByteArray, Info>> entry1 = iter1.next();
+            
+            if(entry1.getValue().size() > 0) {
+                
+                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getHitTimeDelta()));
+                
+            } else iter1.remove();
+            
+        }
+        
+        //ConcurrentModificationException
+        /*
+        for(Map.Entry<ByteArray, HashMap<ByteArray, Info>> pair1 : this.hmap.entrySet()) {
+            if(pair1.getValue().size() > 0) {
+                for(Map.Entry<ByteArray, Info> pair2 : pair1.getValue().entrySet()) {
+
+                    if(now - pair2.getValue().getTimeStamp() > config.getZoneTimeDelta()) removeHitLink(pair1.getKey(),pair2.getKey());
+                }
+            }else removeHit(pair1.getKey());
+        }
+        
         this.hmap.forEach((k1, v1) -> {
             if(v1.size() > 0 ){
                 v1.forEach((k2, v2) -> {
@@ -128,7 +153,7 @@ public class HitCache {
             } else {
                 removeHit(k1);
             }
-        });
+        });*/
     }
 
     Tuple getHit(byte[] nodeIdDst) {

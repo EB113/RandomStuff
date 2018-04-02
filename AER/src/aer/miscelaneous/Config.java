@@ -17,6 +17,7 @@ public class Config {
 
     int queueSize              = 30;
     int zoneSize               = 2; //Tamanho da Zona
+    int zoneSizeHello          = 1; //Dist maxima dos nodos para ser enviado no Hello
     int zoneCacheSize          = 30; //Tamanho de nodos destinos na tabela zonetopology
     int requestCacheSize       = 30; //Tamanhp da Cache dos Requests
     int hitCacheSize           = 30; //Tamanho da Cache dos HIts
@@ -25,7 +26,7 @@ public class Config {
     int reqArraySize           = 10; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
     int hitArraySize           = 10;
     
-    long zoneTimeDelta         = 60;  //Tempo max entre peer hellos  (s)
+    long zoneTimeDelta         = 15;  //Tempo max entre peer hellos  (s)
     long reqTimeDelta          = 600; //Tempo de vida dos Requests  (s)
     long hitTimeDelta          = 600; //Tempo de vida dos Hit  (s)
     int watchDogTimer          = 10;  //Tempo de sleep para o WatchDog da tabela ZoneTopology  (s)
@@ -38,6 +39,14 @@ public class Config {
     
     public Config(){
     
+    }
+
+    public int getZoneSizeHello() {
+        return zoneSizeHello;
+    }
+
+    public void setZoneSizeHello(int zoneSizeHello) {
+        this.zoneSizeHello = zoneSizeHello;
     }
 
     public int getAttempNo() {
