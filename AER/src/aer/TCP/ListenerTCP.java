@@ -78,13 +78,24 @@ public class ListenerTCP implements Runnable{
             if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
                 //ADD REQUEST TO CACHE
                 usedPeers.push((InetAddress)peer.x);
-                //id.addReqCache(usedPeers, peerAddr, nodeIdSrc, nodeIdDst, hopCount, req_num);
+                id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.id.getReqNum());
                 
                 //mandar para a Queue
                 this.control.pushQueueUDP(new Tuple(pdu, peer.x));
 
             }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
                 LinkedList<InetAddress> peerList = id.getReqPeers(); 
+                
+                id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.id.getReqNum());
+                for(InetAddress addr : peerList)
+                {
+                    //ADD REQUEST TO CACHE
+                    usedPeers.push(addr);
+                    
+                    //mandar para a Queue
+                    this.control.pushQueueUDP(new Tuple(pdu, addr));
+                }
+                
             }
            
             
