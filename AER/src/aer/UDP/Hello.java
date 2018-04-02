@@ -22,7 +22,6 @@ public class Hello implements Runnable{
     private Controller  control;
     private Config      config;
     private Node        id;
-    private Boolean     bool;
     
     
     private DatagramSocket ds;
@@ -32,7 +31,6 @@ public class Hello implements Runnable{
         this.control    = control;
         this.config     = config;
         this.id         = id;
-        this.bool       = this.control.getUDPFlag().get();
         this.ds         = new DatagramSocket();
     }    
     
@@ -41,10 +39,7 @@ public class Hello implements Runnable{
         
         while(true){
             
-            synchronized(this.control){
-                this.bool = this.control.getUDPFlag().get();
-            }
-            if(this.bool){
+            if(this.control.getUDPFlag().get()){
                 try {
                     byte[] raw = aer.PDU.Hello.dump(id);
                     this.dp = new DatagramPacket(raw, raw.length, InetAddress.getByName("FF02::1"), 9999);

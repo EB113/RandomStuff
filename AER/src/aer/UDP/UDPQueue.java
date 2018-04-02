@@ -21,28 +21,22 @@ import java.util.logging.Logger;
  */
 public class UDPQueue implements Runnable{
     private Controller control;
-    private Boolean bool;
     private DatagramPacket dp;
     private DatagramSocket ds;
     private Tuple tuple;
     
     public UDPQueue(Controller control) throws SocketException {
         this.control    = control;
-        synchronized(this.control){
-            this.bool       = this.control.getUDPFlag().get();
-        }
         this.tuple      = null;
         this.ds         = new DatagramSocket();
     }
     
     @Override
     public void run() {
+        
         while(true){
             
-            synchronized(this.control){
-                this.bool = this.control.getUDPFlag().get();
-            }
-            if(this.bool){
+            if(this.control.getUDPFlag().get()){
                     this.tuple = (Tuple) control.popQueueUDP();
                     
                     if(tuple != null) this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);

@@ -9,6 +9,7 @@ import aer.Data.Node;
 import aer.PDU.RErr;
 import aer.PDU.RRep;
 import aer.PDU.RReq;
+import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Controller;
 import aer.miscelaneous.Crypto;
@@ -24,6 +25,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.LinkedList;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,14 +40,17 @@ public class ListenerTCP implements Runnable{
     private Node id;
     ServerSocket s1;
     Socket ss;
+    String clientSentence;
     
     public ListenerTCP(Controller control, Config config, Node id) throws SocketException {
+        
        this.control = control;
        this.config = config;
        this.id = id;
        
        try {
           this.s1 = new ServerSocket(9999);
+          //this.s1.setSoTimeout(1500);
             //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         } catch (IOException ex) {
             Logger.getLogger(ListenerTCP.class.getName()).log(Level.SEVERE, null, ex);
@@ -56,56 +61,106 @@ public class ListenerTCP implements Runnable{
     public void run() {
 
         try {
-        String clientSentence;
-         while (true) {
-            Socket connectionSocket = this.s1.accept();
-            BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-            DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-            clientSentence = inFromClient.readLine();
-            System.out.println("Received: " + clientSentence);
-           
-            byte[] nodeIdDst = Crypto.toBytes(clientSentence);
-            LinkedList<InetAddress> usedPeers = new LinkedList<>(); 
-            
-            //byte[] bit = RReq.dumpLocal(Crypto.toBytes(clientSentence), this.config.getHopLimit(), this.id, (byte)0);
-            byte[] pdu = RReq.dumpLocal(this.id, nodeIdDst, this.config.getHopLimit());
-            
-           
-            Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
-            if(peer == null) 
-                peer = id.getHitPeer(nodeIdDst); //Check Hit
-            
-            if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
-                //ADD REQUEST TO CACHE
-                usedPeers.push((InetAddress)peer.x);
-                id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.id.getReqNum());
-                
-                //mandar para a Queue
-                this.control.pushQueueUDP(new Tuple(pdu, peer.x));
-
-            }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
-                LinkedList<InetAddress> peerList = id.getReqPeers(); 
-                
-                id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.id.getReqNum());
-                for(InetAddress addr : peerList)
-                {
-                    //ADD REQUEST TO CACHE
-                    usedPeers.push(addr);
-                    
-                    //mandar para a Queue
-                    this.control.pushQueueUDP(new Tuple(pdu, addr));
-                }
-                
-            }
-           
-            
-            String News = "Noticias do Jornal Nacional Construtores dizem que são precisos mais 80 a 100 mil operários para suportar o acréscimo de produção de 4,5% previsto para este ano. Sindicatos reclamam melhores salários" + '\n';
-            outToClient.writeBytes(News);
-  }
+            this.ss = this.s1.accept();
         } catch (IOException ex) {
             Logger.getLogger(ListenerTCP.class.getName()).log(Level.SEVERE, null, ex);
         }
-// throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            
+            while (true) {
+
+                if(this.control.getTCPFlag().get()){
+                    try {
+                        
+                        BufferedReader inFromClient = new BufferedReader(new InputStreamReader(this.ss.getInputStream()));
+                        DataOutputStream outToClient = new DataOutputStream(this.ss.getOutputStream());
+                        
+                        clientSentence = inFromClient.readLine();
+                        if(clientSentence.equals("exit")) {
+                            
+                            this.control.setUDPFlag(false);
+                            this.control.setTCPFlag(false);
+                            this.control.setWatchDogFlag(false);
+                            
+                            inFromClient.close();
+                            outToClient.close();
+                            
+                            return;
+                        }else {
+                            System.out.println("--->TCPREQ: " + clientSentence);
+                            
+                            //ROUTE REQUEST DATA
+                            byte[] nodeIdDst = Crypto.toBytes(clientSentence);
+                            LinkedList<InetAddress> usedPeers = new LinkedList<>();
+                            byte[] req_pdu = RReq.dumpLocal(this.id, nodeIdDst, this.config.getHopLimit());
+                            byte[] req_num = this.id.getReqNum();
+                            
+                            
+                            //ROUTE REQUEST SEND
+                            
+                            Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
+                            if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
+                            
+                            if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
+                                
+                                //ADD REQUEST TO CACHE
+                                usedPeers.push((InetAddress)peer.x);
+                                id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, req_num);
+                                
+                                //mandar para a Queue
+                                this.control.pushQueueUDP(new Tuple(req_pdu, peer.x));
+                            }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
+                                
+                                LinkedList<InetAddress> peerList = id.getReqPeers();
+                                if(peerList != null){
+                                    
+                                    //SEND REQUEST
+                                    id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, req_num);
+                                    for(InetAddress addr : peerList)
+                                    {
+                                        //ADD REQUEST TO CACHE
+                                        usedPeers.push(addr);
+                                        
+                                        //mandar para a Queue
+                                        this.control.pushQueueUDP(new Tuple(req_pdu, addr));
+                                    }
+                                    
+                                    System.out.println("<---Route Request: " + Crypto.toHex(req_pdu));
+                                    
+                                    ComsTCP coms = null;
+                                    //WAIT REPLY
+                                    coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
+                                    InetAddress data_addr = coms.getAddr();
+                                    
+                                    Object obj = null;
+                                    try {
+                                        obj = coms.getComs().poll(10, TimeUnit.SECONDS);
+                                    } catch (InterruptedException ex) {
+                                        System.out.println("TCP request TIMEOUT");
+                                    }
+                                    
+                                    if(obj == null){
+                                        System.out.println("TCP request TIMEOUT");
+                                    }else {
+                                        System.out.println("--->Route Reply: " + data_addr.getHostAddress());
+                                    }
+                                    
+                                    //DATA REQUEST
+                                    //byte[] out_data_pdu = Data.dumpLocal();
+                                    
+                                    //RETURN DATA
+                                    String news = "Noticias do Jornal Nacional Construtores dizem que são precisos mais 80 a 100 mil operários para suportar o acréscimo de produção de 4,5% previsto para este ano. Sindicatos reclamam melhores salários" + '\n';
+                                    outToClient.writeBytes(news);
+                                    
+                                }else {
+                                    System.out.println("No Zone Peers");
+                                    outToClient.writeBytes("No Zone Peers" + '\n');
+                                }
+                            }
+                        }
+                    } catch (IOException ex) {
+                    }
+                }else return;
+            }
     }
     
 }

@@ -25,46 +25,37 @@ import java.util.logging.Logger;
  *
  * @author pedro
  */
-public class EmitterTCP implements Runnable{
-    Scanner sc;
-    Socket s;
-    Scanner sc1;
-    PrintStream p;     
-    String news;
+public class EmitterTCP{
 
-    public EmitterTCP() throws SocketException {
-        try {
-            //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-            this.s = new Socket(InetAddress.getByName("127.0.0.1"), 9999);
-        } catch (IOException ex) {
-            Logger.getLogger(EmitterTCP.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
     
-    @Override
-    public void run() {
-        try {
-            BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
+    public static void main(String argv[]) throws Exception
+      {
+          
+          Socket s = new Socket(InetAddress.getByName("127.0.0.1"), 9999);
+          System.out.println("Init Client!");
+          BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
+          while(true){
+            System.out.print("CMD:");
             String[] splited = inFromUser.readLine().split(" "); //separa os parametros de entrada
 
             if (splited[0].equals("GET_NEWS_FROM")){
-                DataOutputStream outToServer = new DataOutputStream(this.s.getOutputStream());
 
-                BufferedReader inFromServer = new BufferedReader(new InputStreamReader(this.s.getInputStream()));
+                DataOutputStream outToServer = new DataOutputStream(s.getOutputStream());
+
+                BufferedReader inFromServer = new BufferedReader(new InputStreamReader(s.getInputStream()));
                 outToServer.writeBytes(splited[1] + "\n");
-                news = inFromServer.readLine();
+                String news = inFromServer.readLine();
                 System.out.println("FROM SERVER: " + news);
+            }else if(splited[0].equals("exit")){
+
+                DataOutputStream outToServer = new DataOutputStream(s.getOutputStream());
+                outToServer.writeBytes(splited[0] + "\n");
+                outToServer.close();
+                System.out.println("Client Exiting...");
+                return;
             }else{
                 System.out.println("Comando Não encontrado");
             }
-        } catch (UnknownHostException ex) {
-            Logger.getLogger(EmitterTCP.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(EmitterTCP.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-
-//throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-    
+          }
+      }
 }

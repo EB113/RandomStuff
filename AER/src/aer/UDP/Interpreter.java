@@ -37,22 +37,26 @@ public class Interpreter implements Runnable{
     @Override
     public void run() {
         
-        System.out.println("--->PDU: " + Crypto.toHex(this.pdu));
+        
         switch(this.pdu[0]) {
             case 0x00:
+                    System.out.println("--->Hello");
                     Hello.load(this.pdu, this.id, this.origin);
-                    this.id.print();
                 break;
             case 0x01:
+                    System.out.println("--->Request");
                     RReq.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x02:
+                    System.out.println("--->Reply");              
                     RRep.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x03:
+                    System.out.println("--->Error");
                     RErr.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x04:
+                    System.out.println("--->Data");
                     Data.load(this.pdu, this.id, this.origin, this.control);
                 break;
             default:

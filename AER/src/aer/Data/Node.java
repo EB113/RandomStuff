@@ -59,6 +59,7 @@ public class Node {
         this.config = config;
         //Node Identity
         this.seq_num        = -1;
+        this.req_num        = 0;
         genKeyPair();
         //Routing Data
         this.topo       = new ZoneTopology(config);
@@ -215,6 +216,7 @@ public class Node {
         if(this.seq_num != null)
             synchronized(this.seq_num){
                 buffer.putInt(this.seq_num);
+                this.seq_num++;
             }
         
         return buffer.array();
@@ -321,6 +323,7 @@ public class Node {
         return out;
     }
     
+    //CHAMADA PARA OBTER PEERS A QUEM MANDAR NESTE MOMENTO ESTA PARA TODOS
     //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!   
     public LinkedList<InetAddress> getReqPeers() {
         LinkedList<InetAddress> out = null;

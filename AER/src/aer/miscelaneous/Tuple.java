@@ -24,8 +24,8 @@ public class Tuple {
 }
 */
 public class Tuple<X, Y> { 
-  public final X x; 
-  public final Y y; 
+  public X x; 
+  public Y y; 
   
   public Tuple(X x, Y y) { 
     this.x = x; 

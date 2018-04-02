@@ -26,7 +26,6 @@ public class ListenerUDP implements Runnable{
     //Configs
     private Controller control;
     private Node id;
-    private Boolean bool;
     //Sockets
     private DatagramSocket ds;
     private DatagramPacket dp;
@@ -34,9 +33,7 @@ public class ListenerUDP implements Runnable{
     public ListenerUDP(Controller control, Node id) {
         this.control    = control;
         this.id         = id;
-        synchronized(this.control){
-            this.bool       = this.control.getUDPFlag().get();
-        }
+        
         try {
             this.ds         = new DatagramSocket(9999);
             this.ds.setSoTimeout(1000);
@@ -49,10 +46,7 @@ public class ListenerUDP implements Runnable{
             
         while(true){
             
-            synchronized(this.control){
-                this.bool = this.control.getUDPFlag().get();
-            }
-            if(this.bool){
+            if(this.control.getUDPFlag().get()){
                 try {
                     byte[] b1 = new byte[1024]; // Size to Fix
 
