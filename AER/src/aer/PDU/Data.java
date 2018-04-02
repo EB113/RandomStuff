@@ -8,6 +8,7 @@ package aer.PDU;
 import aer.Data.Node;
 import aer.miscelaneous.Controller;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
 
 /**
  *
@@ -15,9 +16,29 @@ import java.net.InetAddress;
  */
 public class Data {
 
-    public static void load(byte[] pdu, Node id, InetAddress origin, Controller control) {
-    
-       
+    public static void load(byte[] raw, Node id, InetAddress origin, Controller control) {
+        int totalSize           = 0, hopCount = 0; //Obtained Variables
+        int counter             = 1, limit = 1, it = 0; //Auxiliary variables
+        
+        byte secure             = 0x00;
+        
+        
+        
+        
+        //GET SECURITY BYTE
+        secure  =   raw[1];
+        
+        
+        /*
+        //GET PDU TOTAL SIZE
+        limit+=4;
+        for(;counter<limit; counter++) tmp[it++] = raw[counter];
+        ByteBuffer wrapped = ByteBuffer.wrap(tmp);
+        totalSize = wrapped.getInt();
+        it = 0;*/
+        
+        
+        
     }
     
     

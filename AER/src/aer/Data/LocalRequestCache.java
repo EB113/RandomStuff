@@ -22,14 +22,12 @@ public class LocalRequestCache {
 
     //Value Class
     class Info {
-        InetAddress             nodeAddr_hop;
         LinkedList<InetAddress> usedPeers;
         byte[]                  req_num;
         long                    timestamp;
         
-        Info(LinkedList<InetAddress> usedPeers, InetAddress nodeId_hop, byte[] req_num) {
+        Info(LinkedList<InetAddress> usedPeers, byte[] req_num) {
             this.req_num         = req_num;
-            this.nodeAddr_hop    = nodeId_hop;
             this.usedPeers       = usedPeers;
             this.timestamp       = System.currentTimeMillis();
         }
@@ -47,7 +45,7 @@ public class LocalRequestCache {
        this.hmap    = new HashMap<ByteArray, LinkedList<Info>>();
     }
 
-    void addRequest(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeIdDst_old, int hop_count, byte[] req_num) {
+    void addRequest(LinkedList<InetAddress> usedPeers, byte[] nodeIdDst_old, int hop_count, byte[] req_num) {
     
         ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
         
@@ -58,7 +56,7 @@ public class LocalRequestCache {
                 System.out.println("DEMASIADOS PEDIDOS AO PEER ESPECIFICO!");
                 return;
             }else {
-                tmpArray.add(new Info(usedPeers, nodeHopAddr, req_num));
+                tmpArray.add(new Info(usedPeers, req_num));
                 this.hmap.put(nodeIdDst, tmpArray);
             }
             
@@ -66,7 +64,7 @@ public class LocalRequestCache {
             if(this.hmap.size() < config.getRequestCacheSize()) {
                 LinkedList<Info> tmpArray = new LinkedList<>();
                 
-                tmpArray.add(new Info(usedPeers, nodeHopAddr, req_num));
+                tmpArray.add(new Info(usedPeers, req_num));
                 
                 this.hmap.put(nodeIdDst, tmpArray);
             }else {

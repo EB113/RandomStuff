@@ -273,7 +273,7 @@ public class Node {
         if(Crypto.cmpByteArray(id, nodeIdSrc)) {
             if(this.lrcache != null)
                 synchronized(this.lrcache){
-                    this.lrcache.addRequest(usedPeers, nodeHopAddr, nodeIdDst, 0, req_num);
+                    this.lrcache.addRequest(usedPeers, nodeIdDst, 0, req_num);
                 }
         }else {
         
