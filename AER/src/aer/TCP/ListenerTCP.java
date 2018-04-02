@@ -5,15 +5,24 @@
  */
 package aer.TCP;
 
+import aer.Data.Node;
+import aer.PDU.RErr;
+import aer.PDU.RRep;
+import aer.PDU.RReq;
+import aer.miscelaneous.Config;
 import aer.miscelaneous.Controller;
+import aer.miscelaneous.Crypto;
+import aer.miscelaneous.Tuple;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.LinkedList;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,13 +34,22 @@ import java.util.logging.Logger;
 public class ListenerTCP implements Runnable{
 
     private Controller  control;
+    private Config config;
+    private Node id;
     ServerSocket s1;
     Socket ss;
-    Scanner sc;
-    PrintStream p;
-    public ListenerTCP(Controller control) throws SocketException {
+    
+    public ListenerTCP(Controller control, Config config, Node id) throws SocketException {
        this.control = control;
-        //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+       this.config = config;
+       this.id = id;
+       
+       try {
+          this.s1 = new ServerSocket(9999);
+            //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        } catch (IOException ex) {
+            Logger.getLogger(ListenerTCP.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @Override
@@ -39,12 +57,36 @@ public class ListenerTCP implements Runnable{
 
         try {
         String clientSentence;
-        ServerSocket welcomeSocket = new ServerSocket(9999);
-
          while (true) {
-            Socket connectionSocket = welcomeSocket.accept();
+            Socket connectionSocket = this.s1.accept();
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
             DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
+            clientSentence = inFromClient.readLine();
+            System.out.println("Received: " + clientSentence);
+           
+            byte[] nodeIdDst = Crypto.toBytes(clientSentence);
+            LinkedList<InetAddress> usedPeers = new LinkedList<>(); 
+            
+            //byte[] bit = RReq.dumpLocal(Crypto.toBytes(clientSentence), this.config.getHopLimit(), this.id, (byte)0);
+            byte[] pdu = RReq.dumpLocal(this.id, nodeIdDst, this.config.getHopLimit());
+            
+           
+            Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
+            if(peer == null) 
+                peer = id.getHitPeer(nodeIdDst); //Check Hit
+            
+            if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
+                //ADD REQUEST TO CACHE
+                usedPeers.push((InetAddress)peer.x);
+                //id.addReqCache(usedPeers, peerAddr, nodeIdSrc, nodeIdDst, hopCount, req_num);
+                
+                //mandar para a Queue
+                this.control.pushQueueUDP(new Tuple(pdu, peer.x));
+
+            }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
+                LinkedList<InetAddress> peerList = id.getReqPeers(); 
+            }
+           
             
             String News = "Noticias do Jornal Nacional Construtores dizem que são precisos mais 80 a 100 mil operários para suportar o acréscimo de produção de 4,5% previsto para este ano. Sindicatos reclamam melhores salários" + '\n';
             outToClient.writeBytes(News);
