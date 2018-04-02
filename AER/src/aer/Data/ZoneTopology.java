@@ -75,8 +75,8 @@ public class ZoneTopology {
         ByteArray   nodeId      = new ByteArray(nodeId_old);
         
         //ADD HELLO OWNER
-        if(!this.hmap.containsKey(nodeId) && this.hmap.size() < config.getZoneCacheSize()){
-            
+        if(!(this.hmap.containsKey(nodeId)) && this.hmap.size() < config.getZoneCacheSize()){
+            System.out.println("ENTREI");
             HashMap<ByteArray, Info> tmp2 = new HashMap<>();
             info = new Info(addr6, 0, 1, seq_num);
             
@@ -91,6 +91,7 @@ public class ZoneTopology {
             info        = new Info(addr6, 0, peerDist, seq_num);
             
             if(this.hmap.containsKey(peerId)) {//Se ja tem o peer na tabela
+                System.out.println("1WTF!!!!!!!!!!!!!?????????????");
                 HashMap<ByteArray, Info> tmp1 = this.hmap.get(peerId);
                 
                 if(tmp1.containsKey(nodeId)){//se ja tem o hop verificar distancias... OBS:problema relativo a TimeStamp podemos estar a nao inserir algo mais recente
@@ -117,6 +118,7 @@ public class ZoneTopology {
                     }
                 }
             }else if(!peerId.equals(new ByteArray(myid)) && this.hmap.size() < config.getZoneCacheSize()){//Se nao tem o peer na tabela 
+                System.out.println("2WTF!!!!!!!!!!!!!?????????????");
                 HashMap<ByteArray, Info> tmp2 = new HashMap<>();
                 info = new Info(addr6, 0, peerDist, seq_num);
 
