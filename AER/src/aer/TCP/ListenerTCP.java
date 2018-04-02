@@ -5,6 +5,7 @@
  */
 package aer.TCP;
 
+import aer.miscelaneous.Controller;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -23,12 +24,13 @@ import java.util.logging.Logger;
  */
 public class ListenerTCP implements Runnable{
 
+    private Controller  control;
     ServerSocket s1;
     Socket ss;
     Scanner sc;
     PrintStream p;
-    public ListenerTCP() throws SocketException {
-       
+    public ListenerTCP(Controller control) throws SocketException {
+       this.control = control;
         //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
