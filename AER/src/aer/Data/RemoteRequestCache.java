@@ -122,14 +122,15 @@ public class RemoteRequestCache {
         ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
         LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
         
-        for(Info info : tmpArray) {
-            if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst) && Crypto.cmpByteArray(info.req_num, req_num)) {
-                hopAddr = info.nodeAddr_hop;
-                tmpArray.remove(info);
+        if(tmpArray !=null){
+            for(Info info : tmpArray) {
+                if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst) && Crypto.cmpByteArray(info.req_num, req_num)) {
+                    hopAddr = info.nodeAddr_hop;
+                    tmpArray.remove(info);
+                }
             }
+            this.hmap.put(nodeIdSrc, tmpArray);
         }
-        
-        this.hmap.put(nodeIdSrc, tmpArray);
         
         return hopAddr;
     }
@@ -152,12 +153,12 @@ public class RemoteRequestCache {
         InetAddress nodeAddr = null;
         
         LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
-        
-        for(Info info : tmpArray) {
-            if(Crypto.cmpByteArray(info.req_num, req_num)) {
-                nodeAddr = info.nodeAddr_hop;
+        if(tmpArray != null)
+            for(Info info : tmpArray) {
+                if(Crypto.cmpByteArray(info.req_num, req_num)) {
+                    nodeAddr = info.nodeAddr_hop;
+                }
             }
-        }
         
         return nodeAddr;
     }

@@ -213,21 +213,26 @@ public class Node {
     //---------NODE CLASS-----------
     public byte[] getSeqNum() {
         ByteBuffer buffer = ByteBuffer.allocate(4);
-        if(this.seq_num != null)
-            synchronized(this.seq_num){
-                buffer.putInt(this.seq_num);
-                this.seq_num++;
-            }
+        
+        synchronized(this.seq_num){
+            buffer.putInt(this.seq_num);
+        }
         
         return buffer.array();
     }   
     
+    public void incReqNum() {
+        synchronized(this.req_num){
+            this.req_num++;
+        }
+    }
+    
     public byte[] getReqNum() {
         ByteBuffer buffer = ByteBuffer.allocate(4);
-        if(this.req_num != null)
-            synchronized(this.req_num){
-                buffer.putInt(this.req_num);
-            }
+        
+        synchronized(this.req_num){
+            buffer.putInt(this.req_num);
+        }
         
         return buffer.array();
     }
@@ -256,7 +261,7 @@ public class Node {
         
         if(this.topo != null)
             synchronized(this.topo){
-                tuple = this.topo.getPeer(nodeIdDst);
+                tuple = this.topo.getPeer(new ByteArray(nodeIdDst));
             }
         
         return tuple;
@@ -304,10 +309,19 @@ public class Node {
     public InetAddress rmReqCache(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
         InetAddress reqPeerAddr = null;
     
-        if(this.rrcache != null)
-            synchronized(this.rrcache){
-                reqPeerAddr = this.rrcache.rmReq(nodeIdDst, nodeIdSrc, req_num);
-            }
+        if(Crypto.cmpByteArray(id, nodeIdSrc)) {
+            if(this.lrcache != null)
+                synchronized(this.lrcache){
+                    return this.lrcache.rmReq(nodeIdDst, req_num);
+                }
+        }else {
+            if(this.rrcache != null)
+                synchronized(this.rrcache){
+                    return this.rrcache.rmReq(nodeIdDst, nodeIdSrc, req_num);
+                }
+        }
+        
+        
         
         return reqPeerAddr;
     }
@@ -402,6 +416,7 @@ public class Node {
         return excludedNodes;
     }
 
+    //
     public InetAddress getLocalReqAddr(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
         InetAddress out = null;
         
@@ -448,7 +463,7 @@ public class Node {
     public void print() {
         if(this.topo != null)
             synchronized(this.topo){
-                System.out.println("Load Feito...ZonePeerNo: " + this.topo.hmap.size());
+                System.out.println("ZonePeerNo: " + this.topo.hmap.size());
                 this.topo.printPeers();
             }
     }

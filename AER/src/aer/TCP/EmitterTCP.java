@@ -29,7 +29,7 @@ public class EmitterTCP{
 
     
     public static void main(String argv[]) throws Exception
-      {
+      {/*
           
           Socket s = new Socket(InetAddress.getByName("127.0.0.1"), 9999);
           System.out.println("Init Client!");
@@ -56,6 +56,6 @@ public class EmitterTCP{
             }else{
                 System.out.println("Comando Não encontrado");
             }
-          }
+          }*/
       }
 }

@@ -10,11 +10,15 @@ import aer.TCP.ComsTCP;
 import java.net.InetAddress;
 import java.security.Key;
 import java.security.PublicKey;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.PriorityQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -25,7 +29,7 @@ public class Controller {
     private AtomicBoolean               watchDogFlag;
     private AtomicBoolean               UDPFlag;        
     private AtomicBoolean               TCPFlag; 
-    private BlockingQueue               queueUDP;
+    private PriorityQueue               queueUDP;
     private HashMap<ByteArray, ComsTCP> queueTCP;
             
     public Controller(int queueSize, Node id) {
@@ -33,7 +37,24 @@ public class Controller {
         this.watchDogFlag  = new AtomicBoolean(true); //Flag para termino da THread
         this.UDPFlag       = new AtomicBoolean(true); //Flag para termino da THread
         this.TCPFlag       = new AtomicBoolean(true); //Flag para termino da THread
-        this.queueUDP      = new ArrayBlockingQueue(queueSize, true); //fILA the PDU Objects
+        
+        this.queueUDP      = new PriorityQueue<Object>(queueSize, 
+                                        new Comparator<Object>() {
+                                            @Override
+                                            public int compare(Object o1, Object o2) {
+                                                
+                                                byte o1_type = ((byte[])((Tuple)o1).x)[0];
+                                                byte o2_type = ((byte[])((Tuple)o1).x)[0];
+                                                
+                                                if(o1_type == o2_type){
+                                                    return 0;
+                                                } else if(o1_type == 0x00){
+                                                    return -1;
+                                                } else if(o2_type == 0x00) {
+                                                    return 1;
+                                                }else return 0;
+                                            }
+                                        }); //fILA the PDU Objects
         this.queueTCP      = new HashMap<>();//Coms com TCP
     }
     
@@ -64,6 +85,11 @@ public class Controller {
                 /*
                 coms.setPeer_pubk(peer_pubk);
                 coms.setShared_key(this.id.getShared(new Key(peer_pubk)));*/
+            }
+            try {
+                coms.getComs().put(addr);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
             }
         }else {// SE DATA
             

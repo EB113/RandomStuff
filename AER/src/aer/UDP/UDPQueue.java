@@ -37,9 +37,11 @@ public class UDPQueue implements Runnable{
         while(true){
             
             if(this.control.getUDPFlag().get()){
-                    this.tuple = (Tuple) control.popQueueUDP();
-                    
-                    if(tuple != null) this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);
+                
+                this.tuple = (Tuple)control.popQueueUDP();
+                
+                if(tuple != null) this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);
+                
                 try {
                     if(this.dp != null) this.ds.send(dp);
                     this.dp = null;

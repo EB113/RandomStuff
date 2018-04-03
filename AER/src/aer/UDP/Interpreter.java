@@ -40,8 +40,9 @@ public class Interpreter implements Runnable{
         
         switch(this.pdu[0]) {
             case 0x00:
-                    System.out.println("--->Hello");
+                    //System.out.println("--->Hello");
                     Hello.load(this.pdu, this.id, this.origin);
+                    //this.id.print();
                 break;
             case 0x01:
                     System.out.println("--->Request");

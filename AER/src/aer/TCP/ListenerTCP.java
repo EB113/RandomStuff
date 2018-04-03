@@ -86,7 +86,6 @@ public class ListenerTCP implements Runnable{
                             
                             return;
                         }else {
-                            System.out.println("--->TCPREQ: " + clientSentence);
                             
                             //ROUTE REQUEST DATA
                             byte[] nodeIdDst = Crypto.toBytes(clientSentence);
@@ -106,8 +105,24 @@ public class ListenerTCP implements Runnable{
                                 usedPeers.push((InetAddress)peer.x);
                                 id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, req_num);
                                 
-                                //mandar para a Queue
+                                //Criar Queue e ficar a espera
                                 this.control.pushQueueUDP(new Tuple(req_pdu, peer.x));
+                                
+                                ComsTCP coms = null;
+                                
+                                //WAIT REPLY
+                                coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
+                                
+                                Object obj = null;
+                                try {
+                                    obj = coms.getComs().poll(20, TimeUnit.SECONDS);
+                                } catch (InterruptedException ex) {
+                                    System.out.println("1TCP request TIMEOUT");
+                                }
+
+                                if(obj == null){
+                                    System.out.println("2TCP request TIMEOUT");
+                                }
                             }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
                                 
                                 LinkedList<InetAddress> peerList = id.getReqPeers();
@@ -124,42 +139,39 @@ public class ListenerTCP implements Runnable{
                                         this.control.pushQueueUDP(new Tuple(req_pdu, addr));
                                     }
                                     
-                                    System.out.println("<---Route Request: " + Crypto.toHex(req_pdu));
-                                    
                                     ComsTCP coms = null;
                                     //WAIT REPLY
                                     coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
-                                    InetAddress data_addr = coms.getAddr();
                                     
                                     Object obj = null;
                                     try {
-                                        obj = coms.getComs().poll(10, TimeUnit.SECONDS);
+                                        obj = coms.getComs().poll(5, TimeUnit.SECONDS);
                                     } catch (InterruptedException ex) {
-                                        System.out.println("TCP request TIMEOUT");
+                                        System.out.println("1TCP request TIMEOUT");
                                     }
                                     
                                     if(obj == null){
-                                        System.out.println("TCP request TIMEOUT");
-                                    }else {
-                                        System.out.println("--->Route Reply: " + data_addr.getHostAddress());
+                                        System.out.println("2TCP request TIMEOUT");
                                     }
                                     
                                     //DATA REQUEST
                                     //byte[] out_data_pdu = Data.dumpLocal();
                                     
-                                    //RETURN DATA
-                                    String news = "Noticias do Jornal Nacional Construtores dizem que são precisos mais 80 a 100 mil operários para suportar o acréscimo de produção de 4,5% previsto para este ano. Sindicatos reclamam melhores salários" + '\n';
-                                    outToClient.writeBytes(news);
                                     
                                 }else {
                                     System.out.println("No Zone Peers");
                                     outToClient.writeBytes("No Zone Peers" + '\n');
                                 }
                             }
+                            
+                            //RETURN DATA
+                            String news = "Noticias do Jornal Nacional Construtores dizem que são precisos mais 80 a 100 mil operários para suportar o acréscimo de produção de 4,5% previsto para este ano. Sindicatos reclamam melhores salários" + '\n';
+                            outToClient.writeBytes(news);
                         }
                     } catch (IOException ex) {
                     }
                 }else return;
+                System.out.println("FINISHED!LISTENERTCP");
             }
     }
     

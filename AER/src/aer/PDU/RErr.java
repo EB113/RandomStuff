@@ -171,6 +171,7 @@ public class RErr {
             raw[counter] = tmp[it++];
         }
         
+        System.out.println(raw.length + "<---RRERRORREMOTE: " + Crypto.toHex(raw));
         return raw;
     }
 
@@ -242,6 +243,8 @@ public class RErr {
             raw[counter] = req_num[it++];
         }
         it = 0;
+        
+        System.out.println(raw.length + "<---RERRORLOCAL: " + Crypto.toHex(raw));
         
         return raw;
     }

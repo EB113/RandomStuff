@@ -40,19 +40,26 @@ public class RRep {
             raw[counter] = tmp[it++];
         }
         
+        System.out.println(raw.length + "<---RREPREMOTE: " + Crypto.toHex(raw));
+        
         return raw;
     }
 
     
-    public static byte[] dumpLocal(byte[] nodeIdDst, int hopMax, Node node, byte secure) {
+    public static byte[] dumpLocal(byte[] nodeIdDst, int hopMax, Node node, byte secure, byte[] req_num) {
         byte[] id               = node.getId();
         byte[] pubk             = node.getPubKey();
         
         int counter=0, limit = 0, it = 0;
         byte[] tmp = null;
         
+        int len = 0;
+        if(secure == 0x01)
+            len = 1 + 1 + 4 + id.length + nodeIdDst.length + 4 + pubk.length + 4 + 4 + req_num.length; //PDUTYPE+PDUSECURity+PDUTOTALSIZE+NODEIDSRC+NODEIDDST+PUBKEY+dw+SEQNUM+PEERS
+        else
+            len = 1 + 1 + 4 + id.length + nodeIdDst.length + 4 + 4 + req_num.length;
         
-        int len = 1 + 1 + 4 + id.length + nodeIdDst.length + 4 + pubk.length + 4 + 4 + node.getReqNum().length; //PDUTYPE+PDUSECURity+PDUTOTALSIZE+NODEIDSRC+NODEIDDST+PUBKEY+dw+SEQNUM+PEERS
+        
         byte[] raw = new byte[len];
         
         //PDU TYPE
@@ -128,11 +135,13 @@ public class RRep {
         it = 0;
         
         //REQUEST SEQUENCE NUM
-        limit+=node.getReqNum().length;
+        limit+=req_num.length;
         for(; counter<limit; counter++) {
-            raw[counter] = node.getReqNum()[it++];
+            raw[counter] = req_num[it++];
         }
         it = 0;
+        
+        System.out.println(raw.length + "<---RREPLOCAL: " + Crypto.toHex(raw));
         
         return raw;
     }
@@ -151,6 +160,8 @@ public class RRep {
         
         //GET SECURITY BYTE
         secure  =   raw[1];
+        counter++;
+        limit++;
         
         //GET PDU TOTAL SIZE
         limit+=4;
@@ -208,21 +219,26 @@ public class RRep {
         
         hopCount++; //INCREMENTAR CONTADOR
         
-        if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) { //SE PARA MIM
         
-            //REMOVER LOCAL REQUEST CACHE
-            InetAddress addr = id.rmReqCache(nodeIdDst, nodeIdSrc, req_num);
+        
+        if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) { //SE PARA MIM
+            System.out.println("PARAMIM");
+            //REMOVER LOCAL REQUEST CACHEnodeIdSrc
+            InetAddress addr = id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
             if(addr !=  null) {
+                System.out.println("ENCONTRIEREQUEST");
                 //Redirecionar o Reply para o TCP, CHAVE PUBLICA DO PEER
                 control.pushQueueTCP(null, new ByteArray(req_num), nodeHopAddr, peerPubKey);
             }
             
+            System.out.println("BEFORE");
             //Adicionar Rota na Hit Cache
             byte[] nodeHopId = id.getNodeId(nodeHopAddr);
             if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdDst, hopCount);
-            
+            System.out.println("AFTER");
             
         } else {
+            System.out.println("PARAOUTRO");
             // Retirar Request da Cache
             InetAddress nextHopAddr = id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
                     
@@ -232,7 +248,7 @@ public class RRep {
                 control.pushQueueUDP(new Tuple(reply, nextHopAddr));
                 
             } else { //ROUTE ERROR LOST ROUTE
-                byte[] reply = RErr.dumpRemote(raw, hopCount);
+                byte[] reply = RErr.dumpLocal((byte)0x02, hopCount, id, nodeIdDst, req_num); //(raw, hopCount);
                 control.pushQueueUDP(new Tuple(reply, nodeHopAddr));
                 
             }

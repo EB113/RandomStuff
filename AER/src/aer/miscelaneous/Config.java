@@ -31,11 +31,11 @@ public class Config {
     long hitTimeDelta          = 600; //Tempo de vida dos Hit  (s)
     int watchDogTimer          = 10;  //Tempo de sleep para o WatchDog da tabela ZoneTopology  (s)
     
-    long helloTimer            = 1; //Tempo de intervalos entre hellos enviados
+    long helloTimer            = 5; //Tempo de intervalos entre hellos enviados
     
     int attempNo               = 5; //Number of attempts
     int hopLimit               = 10; //Max Hops
-    byte security              = 0x01; //SECURITY 0X00 OFF 0X01 ON
+    byte security              = 0x00; //SECURITY 0X00 OFF 0X01 ON
     
     public Config(){
     

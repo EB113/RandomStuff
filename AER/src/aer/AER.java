@@ -15,6 +15,7 @@ import aer.UDP.UDPQueue;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Controller;
 import aer.miscelaneous.ZoneWatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -51,14 +52,13 @@ public class AER {
          
          Thread t_listener_TCP      = new Thread(listenerTCP);
          
+         TimeUnit.SECONDS.sleep(5);
+         
          // TCP + UDP + WatchDog's Thread Start
          t_queue_UDP.start();
          t_listener_UDP.start();
          t_emitter_UDP.start();
          t_listener_TCP.start();
-         Thread.sleep(500);
-         
-         
          t_wd_zone.start();
          
          // Thread close Wait

@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Map;
 
 /**
@@ -137,6 +138,30 @@ public class LocalRequestCache {
                 if(now - i.getTimeStamp()>config.getReqTimeDelta()) removeRequest(k);
             }
         });*/
+    }
+    
+    
+
+    InetAddress rmReq(byte[] nodeIdDst, byte[] req_num) {
+        
+        InetAddress hopAddr = null;
+        
+        ByteArray nodeIdDst_lookup = new ByteArray(nodeIdDst);
+        LinkedList<Info> tmpArray = this.hmap.get(nodeIdDst_lookup);
+        Info info = null;
+            
+        if(tmpArray != null && tmpArray.size() > 0) {
+            for(ListIterator<Info> iter = tmpArray.listIterator(); iter.hasNext(); ) {
+                info = iter.next();
+                if(Crypto.cmpByteArray(info.req_num, req_num)) {
+                    
+                    hopAddr = info.usedPeers.pop();
+                }
+            }
+        }
+            
+        return hopAddr;
+        
     }
     
 }
