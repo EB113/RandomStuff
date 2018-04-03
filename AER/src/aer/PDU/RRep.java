@@ -40,7 +40,8 @@ public class RRep {
             raw[counter] = tmp[it++];
         }
         
-        System.out.println(raw.length + "<---RREPREMOTE: " + Crypto.toHex(raw));
+        //System.out.println(raw.length + "<---RREPREMOTE: " + Crypto.toHex(raw));
+        System.out.println("<---RREPREMOTE: ");
         
         return raw;
     }
@@ -141,8 +142,8 @@ public class RRep {
         }
         it = 0;
         
-        System.out.println(raw.length + "<---RREPLOCAL: " + Crypto.toHex(raw));
-        
+        //System.out.println(raw.length + "<---RREPLOCAL: " + Crypto.toHex(raw));
+        System.out.println("<---RREPLOCAL: ");
         return raw;
     }
 
@@ -222,23 +223,21 @@ public class RRep {
         
         
         if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) { //SE PARA MIM
-            System.out.println("PARAMIM");
+            
             //REMOVER LOCAL REQUEST CACHEnodeIdSrc
             InetAddress addr = id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
             if(addr !=  null) {
-                System.out.println("ENCONTRIEREQUEST");
+                
                 //Redirecionar o Reply para o TCP, CHAVE PUBLICA DO PEER
                 control.pushQueueTCP(null, new ByteArray(req_num), nodeHopAddr, peerPubKey);
             }
             
-            System.out.println("BEFORE");
             //Adicionar Rota na Hit Cache
             byte[] nodeHopId = id.getNodeId(nodeHopAddr);
             if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdDst, hopCount);
-            System.out.println("AFTER");
             
         } else {
-            System.out.println("PARAOUTRO");
+            
             // Retirar Request da Cache
             InetAddress nextHopAddr = id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
                     

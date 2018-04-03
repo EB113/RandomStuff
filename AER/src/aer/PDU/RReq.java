@@ -258,7 +258,8 @@ public class RReq {
         it = 0;
         //System.out.print("|" + counter + "," + limit + "|");
         
-        System.out.println(raw.length + "<---RREQLOCAL: " + Crypto.toHex(raw));
+        //System.out.println(raw.length + "<---RREQLOCAL: " + Crypto.toHex(raw));
+        System.out.println("<---RREQLOCAL: ");
         
         return raw;
     }
@@ -283,8 +284,8 @@ public class RReq {
             raw[counter] = tmp[it++];
         }
         
-        System.out.println(raw.length + "<---RREQREMOTE: " + Crypto.toHex(raw));
-        
+        //System.out.println(raw.length + "<---RREQREMOTE: " + Crypto.toHex(raw));
+        System.out.println("<---RREQREMOTE: ");
         return raw;
     }
 }

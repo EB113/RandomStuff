@@ -34,7 +34,7 @@ import java.util.logging.Logger;
  * @author pedro
  */
 public class ListenerTCP implements Runnable{
-
+    private ComsTCP coms;
     private Controller  control;
     private Config config;
     private Node id;
@@ -43,17 +43,18 @@ public class ListenerTCP implements Runnable{
     String clientSentence;
     
     public ListenerTCP(Controller control, Config config, Node id) throws SocketException {
-        
-       this.control = control;
-       this.config = config;
-       this.id = id;
        
-       try {
-          this.s1 = new ServerSocket(9999);
-          //this.s1.setSoTimeout(1500);
-            //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        this.coms       = null;
+        this.control    = control;
+        this.config     = config;
+        this.id         = id;
+       
+        try {
+           this.s1 = new ServerSocket(9999);
+           //this.s1.setSoTimeout(1500);
+             //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         } catch (IOException ex) {
-            Logger.getLogger(ListenerTCP.class.getName()).log(Level.SEVERE, null, ex);
+             Logger.getLogger(ListenerTCP.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -100,7 +101,7 @@ public class ListenerTCP implements Runnable{
                             if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
                             
                             if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
-                                
+                                System.out.println("INZONE");
                                 //ADD REQUEST TO CACHE
                                 usedPeers.push((InetAddress)peer.x);
                                 id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, req_num);
@@ -108,23 +109,20 @@ public class ListenerTCP implements Runnable{
                                 //Criar Queue e ficar a espera
                                 this.control.pushQueueUDP(new Tuple(req_pdu, peer.x));
                                 
-                                ComsTCP coms = null;
-                                
                                 //WAIT REPLY
                                 coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
                                 
                                 Object obj = null;
-                                try {
-                                    obj = coms.getComs().poll(20, TimeUnit.SECONDS);
-                                } catch (InterruptedException ex) {
-                                    System.out.println("1TCP request TIMEOUT");
-                                }
-
-                                if(obj == null){
-                                    System.out.println("2TCP request TIMEOUT");
-                                }
-                            }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
+                                if(coms != null){
+                                    try {
+                                        obj = coms.getComs().poll(20, TimeUnit.SECONDS);
+                                    } catch (InterruptedException ex) {
+                                        System.out.println("1TCP request TIMEOUT");
+                                    }
+                                }else System.out.println("NULL COMS!");
                                 
+                            }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
+                                System.out.println("OUTZONE");
                                 LinkedList<InetAddress> peerList = id.getReqPeers();
                                 if(peerList != null){
                                     
@@ -145,19 +143,12 @@ public class ListenerTCP implements Runnable{
                                     
                                     Object obj = null;
                                     try {
-                                        obj = coms.getComs().poll(5, TimeUnit.SECONDS);
+                                        obj = coms.getComs().poll(20, TimeUnit.SECONDS);
                                     } catch (InterruptedException ex) {
                                         System.out.println("1TCP request TIMEOUT");
                                     }
-                                    
-                                    if(obj == null){
-                                        System.out.println("2TCP request TIMEOUT");
-                                    }
-                                    
                                     //DATA REQUEST
                                     //byte[] out_data_pdu = Data.dumpLocal();
-                                    
-                                    
                                 }else {
                                     System.out.println("No Zone Peers");
                                     outToClient.writeBytes("No Zone Peers" + '\n');
@@ -171,7 +162,6 @@ public class ListenerTCP implements Runnable{
                     } catch (IOException ex) {
                     }
                 }else return;
-                System.out.println("FINISHED!LISTENERTCP");
             }
     }
     

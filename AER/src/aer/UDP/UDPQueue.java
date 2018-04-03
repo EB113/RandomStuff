@@ -6,6 +6,7 @@
 package aer.UDP;
 
 import aer.miscelaneous.Controller;
+import aer.miscelaneous.Crypto;
 import aer.miscelaneous.Tuple;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -40,7 +41,10 @@ public class UDPQueue implements Runnable{
                 
                 this.tuple = (Tuple)control.popQueueUDP();
                 
-                if(tuple != null) this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);
+                if(tuple != null) {
+                    this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);
+                    System.out.println("<---: " + Crypto.toHex((byte[])tuple.x));
+                }
                 
                 try {
                     if(this.dp != null) this.ds.send(dp);

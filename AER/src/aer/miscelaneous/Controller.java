@@ -16,6 +16,7 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,7 +30,7 @@ public class Controller {
     private AtomicBoolean               watchDogFlag;
     private AtomicBoolean               UDPFlag;        
     private AtomicBoolean               TCPFlag; 
-    private PriorityQueue               queueUDP;
+    private PriorityBlockingQueue               queueUDP;
     private HashMap<ByteArray, ComsTCP> queueTCP;
             
     public Controller(int queueSize, Node id) {
@@ -38,7 +39,7 @@ public class Controller {
         this.UDPFlag       = new AtomicBoolean(true); //Flag para termino da THread
         this.TCPFlag       = new AtomicBoolean(true); //Flag para termino da THread
         
-        this.queueUDP      = new PriorityQueue<Object>(queueSize, 
+        this.queueUDP      = new PriorityBlockingQueue<Object>(queueSize, 
                                         new Comparator<Object>() {
                                             @Override
                                             public int compare(Object o1, Object o2) {
@@ -48,9 +49,9 @@ public class Controller {
                                                 
                                                 if(o1_type == o2_type){
                                                     return 0;
-                                                } else if(o1_type == 0x00){
+                                                } else if(o1_type == 0x03){
                                                     return -1;
-                                                } else if(o2_type == 0x00) {
+                                                } else if(o2_type == 0x03) {
                                                     return 1;
                                                 }else return 0;
                                             }
@@ -71,7 +72,10 @@ public class Controller {
     
     public void pushQueueTCP(byte[] data, ByteArray req_num, InetAddress addr, byte[] peer_pubk) {
         //SE PEDIDO PERDIDO
-        if(!this.queueTCP.containsKey(req_num)) return; 
+        if(!this.queueTCP.containsKey(req_num)) {
+            System.out.println("SOMETHING WRONG");
+            return;
+        } 
         
         //VERIFICACAO DE PDU TYPE
         ComsTCP coms = this.queueTCP.get((ByteArray)req_num);
