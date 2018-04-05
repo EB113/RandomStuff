@@ -172,7 +172,7 @@ public class HitCache {
                         hopCount    = info.hop_count;
                     }
                 }
-                tuple = new Tuple(addr, now);
+                tuple = new Tuple(hopCount, addr);
             }
         }
         

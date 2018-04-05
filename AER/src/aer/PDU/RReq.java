@@ -21,13 +21,16 @@ import java.util.LinkedList;
  * @author pedro
  */
 public class RReq {
+    InetAddress hopaddr;
     int hop_count;
     int hop_max;
     byte[] key;
     
     int hopAdvised;
     
-    public RReq(int hop_count, int hop_max, byte[] key, int hopAdvised) {
+    public RReq(int hop_count, int hop_max, byte[] key, int hopAdvised, InetAddress hopaddr) {
+        this.hopaddr    = hopaddr;
+        
         this.hop_count  = hop_count;
         this.hop_max    = hop_max;
         this.key        = key;
@@ -46,6 +49,8 @@ public class RReq {
         byte[] nodeIdDst        = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
         byte[] peerPubKey       = null;
         
+        ByteBuffer wrapped = ByteBuffer.allocate(4);
+        
         //GET SECURITY BYTE
         secure  =   raw[1];
         counter++;
@@ -54,7 +59,7 @@ public class RReq {
         //GET PDU TOTAL SIZE
         limit+=4;
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
-        ByteBuffer wrapped = ByteBuffer.wrap(tmp);
+        wrapped = ByteBuffer.wrap(tmp);
         totalSize = wrapped.getInt();
         it = 0;
         
@@ -139,28 +144,29 @@ public class RReq {
             if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
             
             if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
-                usedPeers.push((InetAddress)peer.x);
+                usedPeers.push((InetAddress)peer.y);
                 
-                if(hopCount+(int)peer.y<hopMax) { //SE HOP COUNT AINDA BOM NOTA FALTA 
+                if(hopCount+(int)peer.x<hopMax) { //SE HOP COUNT AINDA BOM NOTA FALTA 
                     
                     //ADD REQUEST TO CACHE
                     id.addReqCache(usedPeers, peerAddr, nodeIdSrc, nodeIdDst, hopCount, hopMax, req_num, peerPubKey);
                     
                     //new RReq para peerRouteId
+                    System.out.println("1");
                     byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
-                    control.pushQueueUDP(new Tuple(reply, peer.x));
+                    control.pushQueueUDP(new Tuple(reply, (InetAddress)peer.y));
                     
                 } else { //SE HOP COUNT MAX
-                    
+                    System.out.println("2");
                     //RError mas tem caminho
-                    byte[] reply = RErr.dumpLocal((byte)0x01, hopCount, (int)peer.y, id, nodeIdDst, nodeIdSrc, req_num);
-                    control.pushQueueUDP(new Tuple(reply, peer.x));
+                    byte[] reply = RErr.dumpLocal((byte)0x01, hopCount, (int)peer.x, id, nodeIdDst, nodeIdSrc, req_num);
+                    control.pushQueueUDP(new Tuple(reply, (InetAddress)peer.y));
                 }
             }else { //SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
                 if(hopCount+2<hopMax) {
-                    
+                    System.out.println("3");
                     //SENAO ROUTE REQUEST OPTIMISTA
-                    LinkedList<InetAddress> peerList = id.getReqRankPeers(peerAddr); //Get Most Probable Peers Without the origin node
+                    LinkedList<InetAddress> peerList = id.getReqRankPeers(peerAddr, null); //Get Most Probable Peers Without the origin node
                     if(peerList != null && peerList.size() > 0){
                         //ADD REQUEST TO CACHE
                         id.addReqCache(peerList, peerAddr, nodeIdSrc, nodeIdDst, hopCount, hopMax, req_num, peerPubKey);

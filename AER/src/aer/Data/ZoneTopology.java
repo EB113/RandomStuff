@@ -242,7 +242,7 @@ public class ZoneTopology {
                     minDist = pair.getValue().getHop_dist();
                 }
             }
-            tuple = new Tuple(peer, minDist);
+            tuple = new Tuple(minDist, peer);
         }
         
         return tuple;
@@ -263,16 +263,24 @@ public class ZoneTopology {
     }
 
     //NESTE MOMENTO ESTA PARA TODOS
-    LinkedList<InetAddress> getReqRankPeers(InetAddress hopAddr) {
+    LinkedList<InetAddress> getReqRankPeers(InetAddress hopVAI, InetAddress hopVEM) {
         LinkedList<InetAddress> ip_list = null;
         LinkedList<Tuple> tuple_list = getRoutes(1);
         
-        if(hopAddr != null){
+        if(hopVAI != null && hopVEM != null){
             if(tuple_list.size() > 0) {
                 ip_list = new LinkedList<>();
 
                 for(Tuple tup : tuple_list) {
-                    if(!hopAddr.equals((InetAddress)tup.x)) ip_list.push((InetAddress)tup.x);
+                    if(!hopVAI.equals((InetAddress)tup.x) && !hopVEM.equals((InetAddress)tup.x)) ip_list.push((InetAddress)tup.x);
+                }
+            }
+        }else if(hopVAI != null) {
+            if(tuple_list.size() > 0) {
+                ip_list = new LinkedList<>();
+
+                for(Tuple tup : tuple_list) {
+                    if(!hopVAI.equals((InetAddress)tup.x)) ip_list.push((InetAddress)tup.x);
                 }
             }
         }else {

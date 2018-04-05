@@ -41,11 +41,13 @@ public class RErr {
         counter++;
         limit++;
         
+        ByteBuffer wrapped = ByteBuffer.allocate(4);
+        
         //GET HOP LEFT IF HOP LIMIT BUT KNOWS ROUTE
         if(errNo == 0x01){
             limit+=4;
             for(;counter<limit; counter++) tmp[it++] = raw[counter];
-            ByteBuffer wrapped = ByteBuffer.wrap(tmp);
+            wrapped = ByteBuffer.wrap(tmp);
             leftHops = wrapped.getInt();
             it = 0;
         }
@@ -53,7 +55,7 @@ public class RErr {
         //GET PDU TOTAL SIZE
         limit+=4;
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
-        ByteBuffer wrapped = ByteBuffer.wrap(tmp);
+        wrapped.clear();
         totalSize = wrapped.getInt();
         it = 0;
         
@@ -104,7 +106,8 @@ public class RErr {
         if(hopId != null)   id.addHitCache(hopAddr, hopId, nodeIdSrc, hopCount);
         id.rmHit(nodeIdSrc, nodeIdOriginalDst, hopAddr); //Remover entrada na zone topology ou hit cache disto
         
-        if(id.existsReq(id.getId(), nodeIdOriginalDst, req_num)) {
+        
+        if(id.existsReq(nodeIdDst, nodeIdOriginalDst, req_num)) {
             
             //DEVOLVE TAMANHO DO USED PEERS E RESPONSIVE PEERS
             Tuple tuple = id.addResponsivePeer(nodeIdDst, nodeIdOriginalDst, req_num, hopAddr, errNo, leftHops);
@@ -114,10 +117,13 @@ public class RErr {
 
             byte strongerErrNo  = (byte)tuple.x; //ERRO MAIS FORTE DOS JA RECEBIDOS
             
+            //GET ORIGINAL REQUEST VALUES + hopadvised
+            RReq requestPDU = id.getReqValues(nodeIdDst, nodeIdOriginalDst, req_num);
+            
             LinkedList<InetAddress> peers = id.getReqPeers(hopAddr);
         
             if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) {//SE PARA MIM
-
+                
                 if(usedSize == 1) {//Se estava na zone ou na hit cache
                     
                     if(errNo == 0x01 && strongerErrNo != 0x03) {//PRIMEIRO QUE RECEBE NOS PROXIMOS DESCARTA
@@ -126,7 +132,7 @@ public class RErr {
                         control.pushQueueUDP(new Tuple(reply, hopAddr));
                     }else {
                         
-                        LinkedList<InetAddress> peersRank = id.getReqRankPeers(hopAddr);
+                        LinkedList<InetAddress> peersRank = id.getReqRankPeers(hopAddr, null);
                         
                         if(peersRank != null && peersRank.size() > 0) {
                             
@@ -144,7 +150,7 @@ public class RErr {
                             id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
 
                             //TRANSMIT TO TCP
-                            control.pushQueueTCP(null, new ByteArray(req_num), null, null);
+                            control.pushQueueTCP(null, new ByteArray(req_num), hopAddr, null);
                         }
                     }
                 
@@ -174,7 +180,7 @@ public class RErr {
                             id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
 
                             //TRANSMIT TO TCP
-                            control.pushQueueTCP(null, new ByteArray(req_num), null, null);
+                            control.pushQueueTCP(null, new ByteArray(req_num), hopAddr, null);
                         }
                     }
                 }else {
@@ -183,17 +189,14 @@ public class RErr {
                     id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
                     
                     //TRANSMIT TO TCP
-                    control.pushQueueTCP(null, new ByteArray(req_num), null, null);
+                    control.pushQueueTCP(null, new ByteArray(req_num), hopAddr, null);
                 }
             }else {
                 
-                //GET ORIGINAL REQUEST VALUES + hopadvised
-                RReq requestPDU = id.getReqValues(nodeIdDst, nodeIdOriginalDst, req_num);
-                
                 if(usedSize == 1) {//Se estava na zone ou na hit cache
-                    
+                    System.out.println("ESTAVA NA ZONE!");
                     //DEVOLVER LOGO OUY CONTINUAR COM PEDIDOS???????????PARA JA ESTA CONTINUAR COM PEDIDOS
-                    LinkedList<InetAddress> peersRank = id.getReqRankPeers(hopAddr);
+                    LinkedList<InetAddress> peersRank = id.getReqRankPeers(hopAddr, requestPDU.hopaddr);
 
                     if(peersRank != null && peersRank.size() > 0) {
 
@@ -218,7 +221,7 @@ public class RErr {
                         id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
                     }
                 }else if(usedSize < peers.size()) { //se ja tinha tentado o rank
-                    
+                    System.out.println("ESTAVA NO RANK!");
                     LinkedList<InetAddress> peersRemaining = id.getExcludedNodes(nodeIdDst, nodeIdOriginalDst, req_num);
                         
                     if(peersRemaining != null && peersRemaining.size() > 0) {
@@ -236,7 +239,6 @@ public class RErr {
                         //GET ADDRESS TO WhICH RETURN
                         InetAddress addr = id.getRReqHopAddr(nodeIdOriginalDst, nodeIdDst, req_num);
                         
-                        
                         //DEVOLVER ERRO Mais Forte
                         byte[] reply = RErr.dumpLocal(strongerErrNo, hopMax, requestPDU.hopAdvised, id, nodeIdOriginalDst, nodeIdDst, req_num);  
                         control.pushQueueUDP(new Tuple(reply, addr));
@@ -246,7 +248,7 @@ public class RErr {
                     }
                     
                 }else {
-                
+                    System.out.println("NAO HA MAIS NADA!");
                     //GET ADDRESS TO WhICH RETURN
                     InetAddress addr = id.getRReqHopAddr(nodeIdOriginalDst, nodeIdDst, req_num);
 
@@ -260,8 +262,8 @@ public class RErr {
                 
             }
         }else {
-        
-            //ACRESCENTAR PONTOS???
+            System.out.println("NAO EXISTE REQUEST!");
+            //ACRESCENTAR PONTOS por devolver fora do tempo???
             return;
         }
     }
@@ -273,8 +275,10 @@ public class RErr {
         int counter = 0;
         
         counter+=2; //PDU TYPE + errNo 
+        if(raw[1] == 0x01) counter+=4;
+        
         counter+=4; //PDU TOTAL SIZE
-        counter+=64; // NODE ID SRC + DST
+        counter+=96; // NODE ID SRC + DST
         
         //HopCount
         ByteBuffer buffer = ByteBuffer.allocate(4);
@@ -296,7 +300,14 @@ public class RErr {
         int counter=0, limit = 0, it = 0;
         byte[] tmp = null;
         
-        int len = 1 + 1 + 4 + id.length + nodeIdDst.length + 4 + 4 + req_num.length; //PDUTYPE+PDUSECURity+PDUTOTALSIZE+NODEIDSRC+NODEIDDST+PUBKEY+dw+SEQNUM+PEERS
+        int len = 0;
+        if(errNo == 0x01) {
+        
+            len = 1 + 1 + 4 + 4 + id.length + nodeIdOriginalDst.length + nodeIdDst.length + 4 + 4 + req_num.length; //PDUTYPE+errNo+PDUTOTALSIZE+NODEIDSRC+NODEIDDST+PUBKEY+dw+SEQNUM+PEERS
+        }else {
+            
+            len = 1 + 1 + 4 + id.length + nodeIdOriginalDst.length + nodeIdDst.length + 4 + 4 + req_num.length; //PDUTYPE+errNo+PDUTOTALSIZE+NODEIDSRC+NODEIDDST+PUBKEY+dw+SEQNUM+PEERS
+        }
         byte[] raw = new byte[len];
         ByteBuffer buffer = ByteBuffer.allocate(4);// VaRIAVEL AUXILIAR PARA BUFFER DE NUMEROS
         
@@ -330,7 +341,7 @@ public class RErr {
         it = 0;
         
         //NODEIDOriginalSRC DATA
-        limit+=id.length;
+        limit+=nodeIdOriginalDst.length;
         for(; counter<limit; counter++) {
             raw[counter] = nodeIdOriginalDst[it++];
         }

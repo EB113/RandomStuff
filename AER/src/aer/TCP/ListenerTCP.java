@@ -101,13 +101,14 @@ public class ListenerTCP implements Runnable{
                             if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
                             
                             if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
+                                
                                 System.out.println("INZONE");
                                 //ADD REQUEST TO CACHE
-                                usedPeers.push((InetAddress)peer.x);
+                                usedPeers.push((InetAddress)peer.y);
                                 id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.config.getHopLimit(), req_num, null);
                                 
                                 //Criar Queue e ficar a espera
-                                this.control.pushQueueUDP(new Tuple(req_pdu, peer.x));
+                                this.control.pushQueueUDP(new Tuple(req_pdu, (InetAddress)peer.y));
                                 
                                 //WAIT REPLY
                                 coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
@@ -117,16 +118,29 @@ public class ListenerTCP implements Runnable{
                                 
                                 Object obj = null;
                                 if(coms != null){
+                                    
                                     try {
-                                        obj = coms.getComs().poll(20, TimeUnit.SECONDS);
+                                        obj = coms.getComs().poll(30, TimeUnit.SECONDS);
+                                        
+                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                        //TRATAR DE DEVOLVER RESPOSTA
+                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
                                     } catch (InterruptedException ex) {
                                         System.out.println("1TCP request TIMEOUT");
                                     }
+                                if(obj == null) {
+                                    System.out.println("2TCP request TIMEOUT");
+                                }else System.out.println("RECEBI");   
+                                    
                                 }else System.out.println("NULL COMS!");
                                 
                             }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
                                 System.out.println("OUTZONE");
-                                LinkedList<InetAddress> peerList = id.getReqRankPeers(null);
+                                LinkedList<InetAddress> peerList = id.getReqRankPeers(null, null);
                                 if(peerList != null){
                                     
                                     //SEND REQUEST mELHOR nODOS
@@ -147,10 +161,25 @@ public class ListenerTCP implements Runnable{
                                     
                                     //SE NAO TEM RESPOSTA TENTAR TODOS OS OUTROS
                                     Object obj = null;
-                                    try {
-                                        obj = coms.getComs().poll(20, TimeUnit.SECONDS);
-                                    } catch (InterruptedException ex) {
-                                        System.out.println("1TCP request TIMEOUT");
+                                    if(coms != null){
+                                        
+                                        try {
+                                            obj = coms.getComs().poll(60, TimeUnit.SECONDS);
+
+                                            //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                            //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                            //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                            //TRATAR DE DEVOLVER RESPOSTA
+                                            //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                            //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                            //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                        } catch (InterruptedException ex) {
+                                            System.out.println("1TCP request TIMEOUT");
+                                        }
+
+                                        if(obj == null) {
+                                            System.out.println("2TCP request TIMEOUT");
+                                        }else System.out.println("RECEBI");  
                                     }
                                     //DATA REQUEST
                                     //byte[] out_data_pdu = Data.dumpLocal();

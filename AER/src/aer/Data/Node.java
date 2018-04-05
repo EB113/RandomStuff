@@ -54,6 +54,7 @@ public class Node {
     private HitCache     hcache;   
     private LocalRequestCache lrcache;
     
+    
     public Node(Config config) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
         
         //Configs
@@ -246,7 +247,7 @@ public class Node {
         
         if(this.topo != null)
             synchronized(this.topo){
-                out = this.topo.getRoutes(maxHops);
+                out = this.topo.getPeers(maxHops);
             }
         
         return out;
@@ -269,7 +270,7 @@ public class Node {
     }
 
     public void addHitCache(InetAddress nodeHopAddr, byte[] nodeHopId, byte[] nodeIdDst , int hop_count) {
-        //ADD HIT OF REQUEST SOURCE
+        //ADD HIT OF addHitREQUEST SOURCE
         if(this.hcache != null)
             synchronized(this.hcache){
                 this.hcache.addHit(nodeHopAddr, nodeHopId, nodeIdDst, hop_count);
@@ -349,12 +350,12 @@ public class Node {
     
     //CHAMADA PARA OBTER PEERS A QUEM MANDAR COM RANK
     //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!   
-    public LinkedList<InetAddress> getReqRankPeers(InetAddress hopPeer) {
+    public LinkedList<InetAddress> getReqRankPeers(InetAddress hopVAI, InetAddress hopVEM) {
         LinkedList<InetAddress> out = null;
         
         if(this.topo != null)
             synchronized(this.topo){
-                out = this.topo.getReqRankPeers(hopPeer);
+                out = this.topo.getReqRankPeers(hopVAI, hopVEM);
             }
         
         return out;
@@ -494,13 +495,15 @@ public class Node {
 
     public Boolean existsReq(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
         
-        if(Crypto.cmpByteArray(id, nodeIdDst)) {
+        if(Crypto.cmpByteArray(this.id, nodeIdSrc)) {
+            
             if(this.lrcache != null)
                 synchronized(this.lrcache){
                     return this.lrcache.existsReq(nodeIdDst, req_num);
                 }
             else return false;
         }else {
+            
             if(this.rrcache != null)
                 synchronized(this.rrcache){
                     return this.rrcache.existsReq(nodeIdSrc, nodeIdDst, req_num);

@@ -30,7 +30,7 @@ public class Controller {
     private AtomicBoolean               watchDogFlag;
     private AtomicBoolean               UDPFlag;        
     private AtomicBoolean               TCPFlag; 
-    private PriorityBlockingQueue               queueUDP;
+    private PriorityBlockingQueue       queueUDP;
     private HashMap<ByteArray, ComsTCP> queueTCP;
             
     public Controller(int queueSize, Node id) {
@@ -62,41 +62,56 @@ public class Controller {
     //NOTA: VERIFDICAR A CLASS DE TODOS OS OBJECTOS RECEBVIDOS NOS SETS 
     
     public ComsTCP popQueueTCP(ByteArray req_num, byte[] pubk) {
-        if(this.queueTCP.containsKey(req_num)) return null;
         
-        ComsTCP coms = new ComsTCP(pubk);
-        this.queueTCP.put(req_num, coms);
+        ComsTCP coms = null;
         
+        if(this.queueTCP != null) {
+            
+            synchronized(this.queueTCP){
+                
+                if(this.queueTCP.containsKey(req_num)) return null;
+
+                coms = new ComsTCP(pubk);
+                this.queueTCP.put(req_num, coms);
+            }
+        }
         return coms;
     }
     
     public void pushQueueTCP(byte[] data, ByteArray req_num, InetAddress addr, byte[] peer_pubk) {
-        //SE PEDIDO PERDIDO
-        if(!this.queueTCP.containsKey(req_num)) {
-            System.out.println("SOMETHING WRONG");
-            return;
-        } 
         
-        //VERIFICACAO DE PDU TYPE
-        ComsTCP coms = this.queueTCP.get((ByteArray)req_num);
+        if(this.queueTCP != null) {
+            
+            synchronized(this.queueTCP){
         
-        if(data == null) {//SE ROUTE REPLY
-            
-            if(peer_pubk == null) {
-            
-                coms.setAddr(addr);
-            }else {
-                /*
-                coms.setPeer_pubk(peer_pubk);
-                coms.setShared_key(this.id.getShared(new Key(peer_pubk)));*/
+                //SE PEDIDO PERDIDO
+                if(!this.queueTCP.containsKey(req_num)) {
+                    System.out.println("SOMETHING WRONG");
+                    return;
+                } 
+
+                //VERIFICACAO DE PDU TYPE
+                ComsTCP coms = this.queueTCP.get((ByteArray)req_num);
+
+                if(data == null) {//SE ROUTE REPLY
+
+                    if(peer_pubk == null) {
+
+                        coms.setAddr(addr);
+                    }else {
+                        /*
+                        coms.setPeer_pubk(peer_pubk);
+                        coms.setShared_key(this.id.getShared(new Key(peer_pubk)));*/
+                    }
+                    try {
+                        coms.getComs().put(addr);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }else {// SE DATA
+
+                }
             }
-            try {
-                coms.getComs().put(addr);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }else {// SE DATA
-            
         }
     }
     
@@ -143,6 +158,18 @@ public class Controller {
         synchronized(this.TCPFlag){
             this.TCPFlag.set(TCPFlag);
         }
+    }
+    
+    public Boolean existsTCP(byte[] req_num) {
+    
+        if(this.queueTCP != null) {
+            
+            synchronized(this.queueTCP){
+                return this.queueTCP.containsKey(req_num);
+            }
+        }
+        
+        return false;
     }
     
 }

@@ -76,15 +76,19 @@ public class RemoteRequestCache {
             
             HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
             
-            if(tmpMap.size() >= config.getReqMapSize()) return;
-            else {
-                if(!tmpMap.containsKey(req_num)){
-                    
-                    tmpMap.put(req_num, new Info(usedPeers, peer_hop, nodeIdDst, hop_count, hop_max, peerKey));
-                    this.hmap.put(nodeIdSrc, tmpMap);
-                }
+            if(tmpMap.containsKey(req_num)){
+                
+                Info info = tmpMap.get(req_num);
+                
+                for(InetAddress addr : usedPeers) info.usedPeers.push(addr);
+            }else if(tmpMap.size() < config.getReqMapSize()) {
+                
+                tmpMap.put(req_num, new Info(usedPeers, peer_hop, nodeIdDst, hop_count, hop_max, peerKey));
+                this.hmap.put(nodeIdSrc, tmpMap);
+            }else{
+                
+                return;
             }
-            
         }else{
             if(this.hmap.size() < config.getRequestCacheSize()) {//SE TEM ESPACO
                 
@@ -94,6 +98,10 @@ public class RemoteRequestCache {
                 tmpMap.put(req_num, info);
                 this.hmap.put(nodeIdSrc, tmpMap);
                 
+            }else {
+                
+                //se nao tem tamanho devolver error sem tamanho IMPORTANTE MAIS UMA FLAG NO ERRO
+                return;
             }
         }
         
@@ -114,7 +122,7 @@ public class RemoteRequestCache {
             
             if(entry1.getValue().size() > 0) {
                 
-                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getReqTimeDelta()));
+                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getRemoteReqTimeDelta()));
                 
             } else iter1.remove();
             
@@ -283,9 +291,12 @@ public class RemoteRequestCache {
         return tuple;
     }
 
-    RReq getReqValues(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+    RReq getReqValues(byte[] nodeIdSrc_old, byte[] nodeIdDst, byte[] req_num_old) {
         
         RReq pduValues = null;
+        
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
         
         if(this.hmap.containsKey(nodeIdSrc)){
             
@@ -295,7 +306,7 @@ public class RemoteRequestCache {
                 Info info = tmpMap.get(req_num);
                 
                 if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst)) {
-                    pduValues = new RReq(info.hop_count, info.hop_max, info.peerKey, info.advisedHop);
+                    pduValues = new RReq(info.hop_count, info.hop_max, info.peerKey, info.advisedHop, info.nodeAddr_hop);
                 }
             }
         }

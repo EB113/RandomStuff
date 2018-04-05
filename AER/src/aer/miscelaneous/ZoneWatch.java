@@ -17,14 +17,14 @@ import java.util.logging.Logger;
  * @author pedro
  */
 public class ZoneWatch implements Runnable{
-    Controller control;
-    int sleepTime;
-    Node node;
+    Controller      control;
+    Config          config;
+    Node            node;
     private Boolean bool;
     
     public ZoneWatch(Controller control, Config config, Node node){
         this.control    = control;
-        this.sleepTime  = config.getWatchDogTimer();
+        this.config     = config;
         this.node       = node;
         this.bool       = this.control.getWatchDogFlag().get();
     }
@@ -45,7 +45,7 @@ public class ZoneWatch implements Runnable{
                     this.node.gcHitCache();
 
                     try {
-                        TimeUnit.SECONDS.sleep(this.sleepTime);
+                        TimeUnit.SECONDS.sleep(config.getWatchDogTimer());
                     } catch (InterruptedException ex) {
                         Logger.getLogger(ZoneWatch.class.getName()).log(Level.SEVERE, null, ex);
                     }

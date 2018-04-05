@@ -27,8 +27,9 @@ public class Config {
     int hitMapSize           = 10;
     
     long zoneTimeDelta         = 15;  //Tempo max entre peer hellos  (s)
-    long reqTimeDelta          = 600; //Tempo de vida dos Requests  (s)
-    long hitTimeDelta          = 600; //Tempo de vida dos Hit  (s)
+    long reqLocalTimeDelta     = 100; //Tempo de vida dos Requests  (s)
+    long reqRemoteTimeDelta    = 30; //Tempo de vida dos Requests  (s)
+    long hitTimeDelta          = 300; //Tempo de vida dos Hit  (s)
     int watchDogTimer          = 10;  //Tempo de sleep para o WatchDog da tabela ZoneTopology  (s)
     
     long helloTimer            = 5; //Tempo de intervalos entre hellos enviados
@@ -41,6 +42,10 @@ public class Config {
     
     }
 
+    //--------------------------------------
+    //TEM QUE SE FAZER SYNCHRONIZE A ISTO TUDO
+    //--------------------------------------
+    
     public int getZoneSizeHello() {
         return zoneSizeHello;
     }
@@ -130,12 +135,20 @@ public class Config {
         this.zoneTimeDelta = zoneTimeDelta;
     }
 
-    public long getReqTimeDelta() {
-        return reqTimeDelta;
+    public long getLocalReqTimeDelta() {
+        return reqLocalTimeDelta;
+    }
+    
+    public long getRemoteReqTimeDelta() {
+        return reqRemoteTimeDelta;
     }
 
-    public void setReqTimeDelta(long reqTimeDelta) {
-        this.reqTimeDelta = reqTimeDelta;
+    public void setLocalReqTimeDelta(long reqTimeDelta) {
+        this.reqLocalTimeDelta = reqTimeDelta;
+    }
+    
+    public void setRemoteReqTimeDelta(long reqTimeDelta) {
+        this.reqRemoteTimeDelta = reqTimeDelta;
     }
 
     public long getHitTimeDelta() {

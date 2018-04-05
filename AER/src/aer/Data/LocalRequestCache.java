@@ -65,26 +65,31 @@ public class LocalRequestCache {
         if(this.hmap.containsKey(nodeIdDst)) { //SE JA TEM DESTINO
             HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdDst);
             
-            if(tmpMap.size() >= config.getReqMapSize()) {//DEMASIADOS PEDIDOS
+            if(tmpMap.containsKey(req_num)){
+                
+                Info info = tmpMap.get(req_num);
+                
+                for(InetAddress addr : usedPeers) info.usedPeers.push(addr);
+            }else if(tmpMap.size() < config.getReqMapSize()) {
+                
+                tmpMap.put(req_num, new Info(usedPeers, hop_max));
+                this.hmap.put(nodeIdDst, tmpMap);
+            }else{
                 
                 return;
-            }else {
-                
-                if(!tmpMap.containsKey(req_num)){
-                    tmpMap.put(req_num, new Info(usedPeers, hop_max));
-                    this.hmap.put(nodeIdDst, tmpMap);
-                }
             }
-            
         }else{//SE NAO TEM DESTINO
+            System.out.println("NAO TENHO REQUEST ADICIONA!");
             if(this.hmap.size() < config.getRequestCacheSize()) {//Se tem tamanho
+                
                 HashMap<ByteArray, Info> tmpMap = new HashMap<ByteArray, Info>();
                 
                 tmpMap.put(req_num, new Info(usedPeers, hop_max));
                 
                 this.hmap.put(nodeIdDst, tmpMap);
             }else {
-                //se nao tem tamanho
+                
+                //se nao tem tamanho devolver error sem tamanho IMPORTANTE MAIS UMA FLAG NO ERRO
                 return;
             }
         }
@@ -137,7 +142,7 @@ public class LocalRequestCache {
             
             if(entry1.getValue().size() > 0) {
                 
-                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getReqTimeDelta()));
+                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getLocalReqTimeDelta()));
                 
             } else iter1.remove();
             
@@ -183,7 +188,7 @@ public class LocalRequestCache {
         ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
         ByteArray req_num   = new ByteArray(req_num_old);
         
-        if(this.hmap.containsKey(nodeIdDst_old)){
+        if(this.hmap.containsKey(nodeIdDst)){
             
             HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdDst);
             if(tmpMap.containsKey(req_num)) return true;

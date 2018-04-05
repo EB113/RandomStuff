@@ -158,6 +158,7 @@ public class RRep {
         byte[] req_num          = new byte[4]; // Request Identifier
         byte[] peerPubKey       = null;
         
+        ByteBuffer wrapped = ByteBuffer.allocate(4);
         
         //GET SECURITY BYTE
         secure  =   raw[1];
@@ -167,7 +168,7 @@ public class RRep {
         //GET PDU TOTAL SIZE
         limit+=4;
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
-        ByteBuffer wrapped = ByteBuffer.wrap(tmp);
+        wrapped = ByteBuffer.wrap(tmp);
         totalSize = wrapped.getInt();
         it = 0;
         
@@ -224,7 +225,7 @@ public class RRep {
         if(id.existsReq(nodeIdDst, nodeIdSrc, req_num)) {
             
             if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) { //SE PARA MIM
-
+                
                 //REMOVER LOCAL REQUEST CACHEnodeIdSrc
                 id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
                 
@@ -253,6 +254,7 @@ public class RRep {
                 }
             }
         }else {
+            
             //VALE A PENA ADICIONAR?
             
             //Adicionar Rota na Hit Cache
