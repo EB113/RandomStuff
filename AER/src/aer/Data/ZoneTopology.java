@@ -237,12 +237,12 @@ public class ZoneTopology {
             HashMap<ByteArray, Info> routes = this.hmap.get(nodeId);
             
             for(Map.Entry<ByteArray, Info> pair : routes.entrySet()) {
-                if(pair.getValue().getHop_dist() < minDist) {
+                if(pair.getValue().getHop_dist() <= minDist) {
                     peer    = pair.getValue().getHop_addr();
                     minDist = pair.getValue().getHop_dist();
                 }
             }
-            tuple = new Tuple(minDist, peer);
+            if(peer != null)    tuple = new Tuple(minDist, peer);
         }
         
         return tuple;
@@ -252,7 +252,9 @@ public class ZoneTopology {
         byte[] peerId = null;
         
         for(Map.Entry<ByteArray, HashMap<ByteArray, Info>> pair1 : this.hmap.entrySet()) {
+            
             for(Map.Entry<ByteArray, Info> pair2 : pair1.getValue().entrySet()) {
+                
                 if(pair2.getValue().hop_addr.equals(nodeHopAddr)) {
                     return pair2.getKey().getData();
                 }

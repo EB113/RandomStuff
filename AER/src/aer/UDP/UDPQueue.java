@@ -30,6 +30,7 @@ public class UDPQueue implements Runnable{
         this.control    = control;
         this.tuple      = null;
         this.ds         = new DatagramSocket();
+        this.dp         = null;
     }
     
     @Override
@@ -44,14 +45,16 @@ public class UDPQueue implements Runnable{
                 if(tuple != null) {
                     this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);
                     System.out.println("<---: " + Crypto.toHex((byte[])tuple.x));
+                    
+                    try {
+                        if(this.dp != null) this.ds.send(dp);
+                        this.dp = null;
+                    } catch (IOException ex) {
+                        Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
                 
-                try {
-                    if(this.dp != null) this.ds.send(dp);
-                    this.dp = null;
-                } catch (IOException ex) {
-                    Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
-                }
+                
             }else return;
             
         }    

@@ -156,15 +156,19 @@ public class HitCache {
         });*/
     }
 
-    Tuple getHit(byte[] nodeIdDst) {
+    Tuple getHit(byte[] nodeIdDst_old) {
         Tuple tuple         = null;
         InetAddress addr    = null;
         long now            = 0;
         int hopCount        = 0;
         
+        ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
+        
         if(this.hmap.containsKey(nodeIdDst)) {
+            
             HashMap <ByteArray, Info> tmpMap = this.hmap.get(nodeIdDst);
             if(tmpMap.size()>0){
+                
                 for(Info info : tmpMap.values()) {
                     if(info.timestamp > now) {
                         now         = info.timestamp;
@@ -179,14 +183,17 @@ public class HitCache {
         return tuple;
     }
 
-    void rmRoute(byte[] nodeIdSrc, byte[] nodeIdDst, InetAddress hopAddr) {
+    void rmRoute(byte[] nodeIdSrc_old, byte[] nodeIdDst_old, InetAddress hopAddr) {
+        
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
         
         if(this.hmap.containsKey(nodeIdDst)){
             HashMap<ByteArray, Info> tmpArray = this.hmap.get(nodeIdDst);
             if(tmpArray.containsKey(nodeIdSrc) && tmpArray.get(nodeIdSrc).nodeAddr_hop.equals(hopAddr)) {
                 tmpArray.remove(nodeIdSrc);
             }
-            this.hmap.put(new ByteArray(nodeIdDst), tmpArray);
+            this.hmap.put(nodeIdDst, tmpArray);
         }
         
     }

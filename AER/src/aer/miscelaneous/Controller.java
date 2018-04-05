@@ -109,7 +109,13 @@ public class Controller {
                         Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }else {// SE DATA
-
+                    coms.setData(data);
+                    
+                    try {
+                        coms.getComs().put(addr);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(Controller.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
             }
         }
@@ -165,7 +171,7 @@ public class Controller {
         if(this.queueTCP != null) {
             
             synchronized(this.queueTCP){
-                return this.queueTCP.containsKey(req_num);
+                return this.queueTCP.containsKey(new ByteArray(req_num));
             }
         }
         

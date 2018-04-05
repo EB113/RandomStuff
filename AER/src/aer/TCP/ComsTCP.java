@@ -17,6 +17,7 @@ public class ComsTCP {
     private byte[] peer_pubk;
     private byte[] pubk;
     private byte[] shared_key;
+    private byte[] data;
     private InetAddress addr;
 
     public ComsTCP(byte[] pubk) {
@@ -53,6 +54,14 @@ public class ComsTCP {
 
     public ArrayBlockingQueue<Object> getComs() {
         return coms;
+    }
+    
+    public byte[] getData() {
+        return this.data;
+    }
+                
+    public void setData(byte[] data) {
+        this.data = data;
     }
     
 }

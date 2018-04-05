@@ -156,7 +156,7 @@ public class RReq {
                     byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
                     control.pushQueueUDP(new Tuple(reply, (InetAddress)peer.y));
                     
-                } else { //SE HOP COUNT MAX
+                } else { //SE HOP COUNT MAXm
                     System.out.println("2");
                     //RError mas tem caminho
                     byte[] reply = RErr.dumpLocal((byte)0x01, hopCount, (int)peer.x, id, nodeIdDst, nodeIdSrc, req_num);
@@ -171,9 +171,10 @@ public class RReq {
                         //ADD REQUEST TO CACHE
                         id.addReqCache(peerList, peerAddr, nodeIdSrc, nodeIdDst, hopCount, hopMax, req_num, peerPubKey);
 
+                        byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
+                        
                         //SEND REQUEST
                         for(InetAddress val : peerList) {
-                            byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
                             control.pushQueueUDP(new Tuple(reply, val));
                         }
                     }else {

@@ -79,7 +79,7 @@ public class LocalRequestCache {
                 return;
             }
         }else{//SE NAO TEM DESTINO
-            System.out.println("NAO TENHO REQUEST ADICIONA!");
+            
             if(this.hmap.size() < config.getRequestCacheSize()) {//Se tem tamanho
                 
                 HashMap<ByteArray, Info> tmpMap = new HashMap<ByteArray, Info>();

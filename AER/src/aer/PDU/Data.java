@@ -89,23 +89,26 @@ public class Data {
         
         if(Crypto.cmpByteArray(id.getId(), nodeIdDst)){
             
+            //Adicionar Rota na Hit Cache
+            byte[] nodeHopId = id.getNodeId(origin);
+            if(nodeHopId != null)   id.addHitCache(origin, nodeHopId, nodeIdSrc, hopCount);
+            
             //CALCULATE DATA SIZE
             dataSize = totalSize - (1 + 1 + 4 + 4 + 4 + 32 + 32 + 4 + 4 + 4); //type,sec,totalsize, offset, fragsize, src,dst,hopcount,hopmax,reqnum
             byte[] data = new byte[dataSize];
 
             //GET DATA
             limit+=dataSize;
-
-            limit+=32;
             for(;counter<limit; counter++) data[it++] = raw[counter];
             it = 0;
             
             //PEDIDO
             if(control.existsTCP(req_num)){
-                if(secure == 0x00){
                 
+                if(secure == 0x00){
+                    
                     //Redirecionar o Reply para o TCP, CHAVE PUBLICA DO PEER
-                    control.pushQueueTCP(data, new ByteArray(req_num), null, null);
+                    control.pushQueueTCP(data, new ByteArray(req_num), origin, null);
                 }else {
                     
                     
@@ -115,7 +118,7 @@ public class Data {
                 
                 if(secure == 0x00){
                 
-                    byte[] reply = Data.dumpLocal(nodeIdDst, hopMax, id, secure, req_num);
+                    byte[] reply = Data.dumpLocal(nodeIdSrc, hopMax, id, secure, req_num);
                     control.pushQueueUDP(new Tuple(reply, origin));
                 }else {
                 
@@ -126,6 +129,7 @@ public class Data {
             
             
         }else {
+            
             hopCount++;
             
             //Adicionar Rota na Hit Cache
@@ -135,9 +139,12 @@ public class Data {
             Tuple tuple = id.getHitPeer(nodeIdDst);
             //INCREMENTAR HOP E REDIRECIONAR
             if(tuple != null) {
-
+                
                 byte[] reply = Data.dumpRemote(raw, hopCount);
                 control.pushQueueUDP(new Tuple(reply, (InetAddress)tuple.y));
+            }else{
+            
+                System.out.println("MERDA3");
             }
         }
     }
@@ -153,9 +160,9 @@ public class Data {
         
         String data = "Olá sou o peer: " + Crypto.toHex(node.getId());
         
-        byte[] b = data.getBytes(StandardCharsets.UTF_8);
+        byte[] data_bytes = data.getBytes(StandardCharsets.UTF_8);
         
-        int len = 1 + 1 + 4 + 4 + 4 + 32 + 32 + 4 + b.length;
+        int len = 1 + 1 + 4 + 4 + 4 + 32 + 32 + 4 + 4 + 4 + data_bytes.length;
         
         byte[] raw = new byte[len];
         
@@ -189,7 +196,7 @@ public class Data {
         
         //PDU FRAGTOTALSIZE
         buffer.clear();
-        buffer.putInt(b.length);
+        buffer.putInt(data_bytes.length);
         tmp = buffer.array();
         limit+=4;
         for(; counter<limit; counter++) {
@@ -237,6 +244,13 @@ public class Data {
             raw[counter] = req_num[it++];
         }
         it = 0;
+        
+        limit+=data_bytes.length;
+        for(; counter<limit; counter++) {
+            raw[counter] = data_bytes[it++];
+        }
+        
+        System.out.println("<---DATALOCAL: ");
         
         return raw;
         

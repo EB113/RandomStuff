@@ -6,6 +6,7 @@
 package aer.TCP;
 
 import aer.Data.Node;
+import aer.PDU.Data;
 import aer.PDU.RErr;
 import aer.PDU.RRep;
 import aer.PDU.RReq;
@@ -23,6 +24,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
@@ -67,6 +69,8 @@ public class ListenerTCP implements Runnable{
             Logger.getLogger(ListenerTCP.class.getName()).log(Level.SEVERE, null, ex);
         }
             
+        String news = "ALGO ESTÁ MAL";
+         
             while (true) {
 
                 if(this.control.getTCPFlag().get()){
@@ -90,108 +94,154 @@ public class ListenerTCP implements Runnable{
                             
                             //ROUTE REQUEST DATA
                             byte[] nodeIdDst = Crypto.toBytes(clientSentence);
-                            LinkedList<InetAddress> usedPeers = new LinkedList<>();
-                            byte[] req_pdu = RReq.dumpLocal(this.id, nodeIdDst, this.config.getHopLimit());
-                            byte[] req_num = this.id.getReqNum();
+                            if(Crypto.cmpByteArray(nodeIdDst, this.id.getId())){
                             
-                            
-                            //ROUTE REQUEST SEND
-                            
-                            Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
-                            if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
-                            
-                            if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
+                                outToClient.writeBytes("SOU EU HOMEM!" + "\n");
+                            }else {
                                 
-                                System.out.println("INZONE");
-                                //ADD REQUEST TO CACHE
-                                usedPeers.push((InetAddress)peer.y);
-                                id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.config.getHopLimit(), req_num, null);
+                                LinkedList<InetAddress> usedPeers = new LinkedList<>();
+                                byte[] req_pdu = RReq.dumpLocal(this.id, nodeIdDst, this.config.getHopLimit());
+                                byte[] req_num = this.id.getReqNum();
+
+
+                                //ROUTE REQUEST SEND
+
+                                Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
+                                if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
                                 
-                                //Criar Queue e ficar a espera
-                                this.control.pushQueueUDP(new Tuple(req_pdu, (InetAddress)peer.y));
-                                
-                                //WAIT REPLY
-                                coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
-                                
-                                //SE NAO TEM RESPOSTA TENTAR TODOS OS OUTROS NODOS
-                                
-                                
-                                Object obj = null;
-                                if(coms != null){
+                                if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
                                     
-                                    try {
-                                        obj = coms.getComs().poll(30, TimeUnit.SECONDS);
-                                        
-                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
-                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
-                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
-                                        //TRATAR DE DEVOLVER RESPOSTA
-                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
-                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
-                                        //imp!!!!!!!!!!!!!!!!!!!!!!!
-                                    } catch (InterruptedException ex) {
-                                        System.out.println("1TCP request TIMEOUT");
-                                    }
-                                if(obj == null) {
-                                    System.out.println("2TCP request TIMEOUT");
-                                }else System.out.println("RECEBI");   
-                                    
-                                }else System.out.println("NULL COMS!");
-                                
-                            }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
-                                System.out.println("OUTZONE");
-                                LinkedList<InetAddress> peerList = id.getReqRankPeers(null, null);
-                                if(peerList != null){
-                                    
-                                    //SEND REQUEST mELHOR nODOS
+                                    System.out.println("INZONE");
+                                    //ADD REQUEST TO CACHE
+                                    usedPeers.push((InetAddress)peer.y);
                                     id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.config.getHopLimit(), req_num, null);
-                                    for(InetAddress addr : peerList)
-                                    {
-                                        //ADD REQUEST TO CACHE
-                                        usedPeers.push(addr);
-                                        
-                                        //mandar para a Queue
-                                        this.control.pushQueueUDP(new Tuple(req_pdu, addr));
-                                    }
-                                    
-                                    ComsTCP coms = null;
+
+                                    //Criar Queue e ficar a espera
+                                    this.control.pushQueueUDP(new Tuple(req_pdu, peer.y));
+
                                     //WAIT REPLY
                                     coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
-                                    
-                                    
-                                    //SE NAO TEM RESPOSTA TENTAR TODOS OS OUTROS
+
+                                    //SE NAO TEM RESPOSTA TENTAR TODOS OS OUTROS NODOS
+
+
                                     Object obj = null;
                                     if(coms != null){
                                         
                                         try {
-                                            obj = coms.getComs().poll(60, TimeUnit.SECONDS);
+                                            obj = coms.getComs().poll(30, TimeUnit.SECONDS);
 
                                             //imp!!!!!!!!!!!!!!!!!!!!!!!
                                             //imp!!!!!!!!!!!!!!!!!!!!!!!
                                             //imp!!!!!!!!!!!!!!!!!!!!!!!
                                             //TRATAR DE DEVOLVER RESPOSTA
+                                            if(obj != null){
+                                                //TROCAR HOP VALUES depois para ja estatico
+                                                byte[] dataReq = Data.dumpLocal(nodeIdDst, this.config.getHopLimit(), this.id, (byte)0x00, req_num);
+                                                //Criar Queue e ficar a espera
+                                                this.control.pushQueueUDP(new Tuple(dataReq, (InetAddress)obj)); 
+
+                                                //WAIT REPLY E necessario???
+                                                //coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
+
+                                                if(coms != null){
+                                                    
+                                                    try {
+                                                        obj = coms.getComs().poll(50, TimeUnit.SECONDS);
+
+                                                        if(obj != null){
+                                                            
+                                                            news = new String(coms.getData(), StandardCharsets.UTF_8);
+                                                        }
+                                                    } catch (InterruptedException ex) {
+                                                        System.out.println("1TCP request TIMEOUT");
+                                                    }
+                                                }
+                                            }
                                             //imp!!!!!!!!!!!!!!!!!!!!!!!
                                             //imp!!!!!!!!!!!!!!!!!!!!!!!
                                             //imp!!!!!!!!!!!!!!!!!!!!!!!
                                         } catch (InterruptedException ex) {
                                             System.out.println("1TCP request TIMEOUT");
+                                        } 
+
+                                    }else System.out.println("NULL COMS!");
+
+                                }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
+                                System.out.println("OUTZONE");
+
+                                    LinkedList<InetAddress> peerList = id.getReqRankPeers(null, null);
+                                    if(peerList != null){
+
+                                        //SEND REQUEST mELHOR nODOS
+                                        id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.config.getHopLimit(), req_num, null);
+                                        for(InetAddress addr : peerList)
+                                        {
+                                            //ADD REQUEST TO CACHE
+                                            usedPeers.push(addr);
+
+                                            //mandar para a Queue
+                                            this.control.pushQueueUDP(new Tuple(req_pdu, addr));
                                         }
 
-                                        if(obj == null) {
-                                            System.out.println("2TCP request TIMEOUT");
-                                        }else System.out.println("RECEBI");  
+                                        ComsTCP coms = null;
+                                        //WAIT REPLY
+                                        coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
+
+
+                                        //SE NAO TEM RESPOSTA TENTAR TODOS OS OUTROS
+                                        Object obj = null;
+                                        if(coms != null){
+                                            try {
+                                                obj = coms.getComs().poll(30, TimeUnit.SECONDS);
+
+                                                //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                                //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                                //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                                //TRATAR DE DEVOLVER RESPOSTA
+                                                if(obj != null){
+                                                    //TROCAR HOP VALUES depois para ja estatico
+                                                    byte[] dataReq = Data.dumpLocal(nodeIdDst, this.config.getHopLimit(), this.id, (byte)0x00, req_num);
+                                                    //Criar Queue e ficar a espera
+                                                    this.control.pushQueueUDP(new Tuple(dataReq, (InetAddress)obj)); 
+
+                                                    //WAIT REPLY
+                                                    //coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
+
+                                                    if(coms != null){
+                                                        
+                                                        try {
+                                                            obj = coms.getComs().poll(50, TimeUnit.SECONDS);
+
+                                                            if(obj != null){
+                                                                
+                                                                news = new String(coms.getData(), StandardCharsets.UTF_8);
+                                                            }
+                                                        } catch (InterruptedException ex) {
+                                                            System.out.println("1TCP request TIMEOUT");
+                                                        }
+                                                    }
+                                                }
+                                                //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                                //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                                //imp!!!!!!!!!!!!!!!!!!!!!!!
+                                            } catch (InterruptedException ex) {
+                                                System.out.println("1TCP request TIMEOUT");
+                                            }
+                                        }
+                                        //DATA REQUEST
+                                        //byte[] out_data_pdu = Data.dumpLocal();
+                                    }else {
+                                        System.out.println("No Zone Peers");
+                                        outToClient.writeBytes("No Zone Peers" + '\n');
                                     }
-                                    //DATA REQUEST
-                                    //byte[] out_data_pdu = Data.dumpLocal();
-                                }else {
-                                    System.out.println("No Zone Peers");
-                                    outToClient.writeBytes("No Zone Peers" + '\n');
                                 }
+
+                                //RETURN DATA
+
+                                outToClient.writeBytes(news + "\n");
+                                news = "ALGO ESTÁ MAL";
                             }
-                            
-                            //RETURN DATA
-                            String news = "Noticias do Jornal Nacional Construtores dizem que são precisos mais 80 a 100 mil operários para suportar o acréscimo de produção de 4,5% previsto para este ano. Sindicatos reclamam melhores salários" + '\n';
-                            outToClient.writeBytes(news);
                         }
                     } catch (IOException ex) {
                     }
