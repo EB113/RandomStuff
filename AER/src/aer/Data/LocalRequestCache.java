@@ -8,6 +8,7 @@ package aer.Data;
 import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
+import aer.miscelaneous.Tuple;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,13 +25,22 @@ public class LocalRequestCache {
     //Value Class
     class Info {
         LinkedList<InetAddress> usedPeers;
-        byte[]                  req_num;
-        long                    timestamp;
+        byte                    errNo; //USADO PARA COLOCAR ERRO PREDOMINANTE QUE E O 0x01
+        LinkedList<InetAddress> responsivePeers; //DOIS ARRAYS PARA DPS PODER USAR O DE USEDPEERS PARA PEDIR AOS NODOS QUE AINDA NAO FORAM USADOS, Tuple<Error Type, InetAddress>
+        LinkedList<InetAddress> tempPeers;//PEERS COM RESPOSTA DE HOP LIMIT MAS CONHECEM
         
-        Info(LinkedList<InetAddress> usedPeers, byte[] req_num) {
-            this.req_num         = req_num;
+        long                    timestamp;
+        int                     hop_count;
+        int                     hop_max;
+        
+        Info(LinkedList<InetAddress> usedPeers, int hop_max) {
+            
             this.usedPeers       = usedPeers;
+            this.responsivePeers = new LinkedList();
+            this.tempPeers       = new LinkedList();
+            this.errNo           = 0x02;
             this.timestamp       = System.currentTimeMillis();
+            this.hop_max         = hop_max;//QUANDO SE REPETE O PEDIDO POR HOP LIMIT MAS CONHECE?
         }
         
         public long getTimeStamp() {
@@ -38,67 +48,78 @@ public class LocalRequestCache {
         }
     }
     //NODE ID DST X info list
-    HashMap <ByteArray, LinkedList<Info>> hmap;
+    HashMap <ByteArray, HashMap<ByteArray, Info>> hmap;
     Config config;
     
     public LocalRequestCache(Config config) {
        this.config  = config;
-       this.hmap    = new HashMap<ByteArray, LinkedList<Info>>();
+       this.hmap    = new HashMap<ByteArray, HashMap<ByteArray, Info>>();
     }
 
-    void addRequest(LinkedList<InetAddress> usedPeers, byte[] nodeIdDst_old, int hop_count, byte[] req_num) {
+    // falta adicionar aos used peers
+    void addRequest(LinkedList<InetAddress> usedPeers, byte[] nodeIdDst_old, byte[] req_num_old, int hop_max) {
     
         ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
         
-        if(this.hmap.containsKey(nodeIdDst)) {
-            LinkedList<Info> tmpArray = this.hmap.get(nodeIdDst);
+        if(this.hmap.containsKey(nodeIdDst)) { //SE JA TEM DESTINO
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdDst);
             
-            if(tmpArray.size() >= config.getReqArraySize()) {
-                System.out.println("DEMASIADOS PEDIDOS AO PEER ESPECIFICO!");
+            if(tmpMap.size() >= config.getReqMapSize()) {//DEMASIADOS PEDIDOS
+                
                 return;
             }else {
-                tmpArray.add(new Info(usedPeers, req_num));
-                this.hmap.put(nodeIdDst, tmpArray);
+                
+                if(!tmpMap.containsKey(req_num)){
+                    tmpMap.put(req_num, new Info(usedPeers, hop_max));
+                    this.hmap.put(nodeIdDst, tmpMap);
+                }
             }
             
-        }else{
-            if(this.hmap.size() < config.getRequestCacheSize()) {
-                LinkedList<Info> tmpArray = new LinkedList<>();
+        }else{//SE NAO TEM DESTINO
+            if(this.hmap.size() < config.getRequestCacheSize()) {//Se tem tamanho
+                HashMap<ByteArray, Info> tmpMap = new HashMap<ByteArray, Info>();
                 
-                tmpArray.add(new Info(usedPeers, req_num));
+                tmpMap.put(req_num, new Info(usedPeers, hop_max));
                 
-                this.hmap.put(nodeIdDst, tmpArray);
+                this.hmap.put(nodeIdDst, tmpMap);
             }else {
-                System.out.println("DEMASIADOS PEDIDOS DE ROTA!");
+                //se nao tem tamanho
+                return;
             }
         }
     }
 
     //ESTOU A SUPOR QUE NAO HA PEDIDO COM MESMO SEQ ID, como resolver??
-    byte[] getReqTarget(byte[] req_num) {
+    //ISTO E UM BOCADO DUVIDOSO
+    byte[] getReqTarget(byte[] req_num_old) {
+        
+        ByteArray req_num = new ByteArray(req_num_old);
         
         byte[] nodeId = null;
         
-        for(Map.Entry<ByteArray, LinkedList<Info>> pair : this.hmap.entrySet()) {
-            for(Info info : pair.getValue()) {
-                if(Crypto.cmpByteArray(info.req_num, req_num)) nodeId = pair.getKey().getData();
+        for(Map.Entry<ByteArray, HashMap<ByteArray, Info>> pair : this.hmap.entrySet()) {
+            if(pair.getValue().containsKey(req_num)) {
+                nodeId = pair.getKey().getData();
             }
         }
         
         return nodeId;
     }
 
-    LinkedList<InetAddress> getIncludedNodes(byte[] nodeIdDst, byte[] req_num) {
+    LinkedList<InetAddress> getIncludedNodes(byte[] nodeIdDst_old, byte[] req_num_old) {
         LinkedList<InetAddress> usedPeers = null;
         
-        LinkedList<Info> tmpArray = this.hmap.get(nodeIdDst);
+        ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
         
-        for(Info info : tmpArray) {
-            if(Crypto.cmpByteArray(info.req_num, req_num)) {
-                usedPeers = info.usedPeers;
-            }
-        }    
+        if(this.hmap.containsKey(nodeIdDst)) {
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdDst);
         
+            if(tmpMap.containsKey(req_num)) {
+                usedPeers = tmpMap.get(req_num).usedPeers;
+            }   
+        }
         return usedPeers;
     }
 
@@ -109,14 +130,14 @@ public class LocalRequestCache {
     public void gcReq() {
         long now  = System.currentTimeMillis();
         
-        Iterator<Map.Entry<ByteArray, LinkedList<Info>>> iter1 = this.hmap.entrySet().iterator();
+        Iterator<Map.Entry<ByteArray, HashMap<ByteArray, Info>>> iter1 = this.hmap.entrySet().iterator();
         
         while (iter1.hasNext()) {
-            Map.Entry<ByteArray, LinkedList<Info>>entry1 = iter1.next();
+            Map.Entry<ByteArray, HashMap<ByteArray, Info>>entry1 = iter1.next();
             
             if(entry1.getValue().size() > 0) {
                 
-                entry1.getValue().removeIf(entry2 -> (now - entry2.getTimeStamp() > config.getReqTimeDelta()));
+                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getReqTimeDelta()));
                 
             } else iter1.remove();
             
@@ -142,26 +163,78 @@ public class LocalRequestCache {
     
     
 
-    InetAddress rmReq(byte[] nodeIdDst, byte[] req_num) {
+    void rmReq(byte[] nodeIdDst_old, byte[] req_num_old) {
         
-        InetAddress hopAddr = null;
+        ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
         
-        ByteArray nodeIdDst_lookup = new ByteArray(nodeIdDst);
-        LinkedList<Info> tmpArray = this.hmap.get(nodeIdDst_lookup);
-        Info info = null;
+        if(this.hmap.containsKey(nodeIdDst)) {
             
-        if(tmpArray != null && tmpArray.size() > 0) {
-            for(ListIterator<Info> iter = tmpArray.listIterator(); iter.hasNext(); ) {
-                info = iter.next();
-                if(Crypto.cmpByteArray(info.req_num, req_num)) {
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdDst);
+
+            if(tmpMap.containsKey(req_num)) tmpMap.remove(req_num);
+       }  
+        
+       return;
+    }
+
+    Boolean existsReq(byte[] nodeIdDst_old, byte[] req_num_old) {
+        
+        ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
+        
+        if(this.hmap.containsKey(nodeIdDst_old)){
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdDst);
+            if(tmpMap.containsKey(req_num)) return true;
+        }
+        return false;
+    }
+    
+    
+
+    Tuple addResponse(byte[] nodeIdOriginalDst_old, byte[] req_num_old, InetAddress nodeAddrHop, byte errNo) {
+        //0 igual, 1 diff, 2 hop, 3 null
+        //<errno,<size,size>>
+        Tuple tuple = new Tuple(null, new Tuple(0, 0));
+        
+        ByteArray nodeIdOriginalDst = new ByteArray(nodeIdOriginalDst_old);
+        ByteArray req_num           = new ByteArray(req_num_old);
+        
+        if(this.hmap.containsKey(nodeIdOriginalDst)){
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdOriginalDst);
+
+            if(tmpMap.containsKey(req_num)){
+                
+                Info info = tmpMap.get(req_num);
+                tuple.x = errNo;
+                
+                if(errNo == 0x01){
                     
-                    hopAddr = info.usedPeers.pop();
+                    info.errNo = errNo;
+                    
+                    if(!info.tempPeers.contains(nodeAddrHop)) {
+                        
+                        info.tempPeers.add(nodeAddrHop);
+                    }else if(!info.responsivePeers.contains(nodeAddrHop)){
+                        tuple.x = 0x03;
+                        info.responsivePeers.add(nodeAddrHop);
+                    }else tuple.x = 0x03;
+                }else {
+                    
+                    if(errNo == 0x00 && info.errNo != 0x01) {
+                        info.errNo = errNo;
+                    }
+                    info.responsivePeers.add(nodeAddrHop);
                 }
+            
+                ((Tuple)tuple.y).x = info.usedPeers.size();
+                ((Tuple)tuple.y).y = info.responsivePeers.size();    
             }
         }
-            
-        return hopAddr;
         
+        return tuple;
     }
     
 }

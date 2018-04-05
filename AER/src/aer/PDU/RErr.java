@@ -6,6 +6,7 @@
 package aer.PDU;
 
 import aer.Data.Node;
+import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Controller;
 import aer.miscelaneous.Crypto;
 import aer.miscelaneous.Tuple;
@@ -25,25 +26,40 @@ public class RErr {
     public static void load(byte[] raw, Node id, InetAddress hopAddr, Controller control) {
     
         int counter             = 1, limit = 1, it = 0; //Auxiliary variables
-        int totalSize           = 0, hopCount = 0, hopMax = 0; //Obtained Variables
+        int totalSize           = 0, hopCount = 0, hopMax = 0, leftHops = 0; //Obtained Variables
         byte errNo              = 0x00;
         
-        byte[] nodeIdSrc        = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
-        byte[] nodeIdDst        = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
-        byte[] tmp              = new byte[4]; //Auxiliary array for Integer
-        byte[] req_num          = new byte[4]; //Request Identifier
-        byte[] nodeIdTarget     = null; //NODEID OF REQUEST in Cache
+        byte[] nodeIdOriginalDst    = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
+        byte[] nodeIdSrc            = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
+        byte[] nodeIdDst            = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
+        byte[] tmp                  = new byte[4]; //Auxiliary array for Integer
+        byte[] req_num              = new byte[4]; //Request Identifier
+        byte[] nodeIdTarget         = null; //NODEID OF REQUEST in Cache
                 
         //GET ERRNO
         errNo = raw[limit];
         counter++;
         limit++;
         
+        //GET HOP LEFT IF HOP LIMIT BUT KNOWS ROUTE
+        if(errNo == 0x01){
+            limit+=4;
+            for(;counter<limit; counter++) tmp[it++] = raw[counter];
+            ByteBuffer wrapped = ByteBuffer.wrap(tmp);
+            leftHops = wrapped.getInt();
+            it = 0;
+        }
+        
         //GET PDU TOTAL SIZE
         limit+=4;
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
         ByteBuffer wrapped = ByteBuffer.wrap(tmp);
         totalSize = wrapped.getInt();
+        it = 0;
+        
+        //ORIGINAL DESTINATION
+        limit+=32;
+        for(;counter<limit; counter++) nodeIdOriginalDst[it++] = raw[counter];
         it = 0;
         
         //GET NODEIDSRC 
@@ -80,80 +96,178 @@ public class RErr {
         
         hopCount++; //INCREMENTAR CONTADOR
         
-        switch(errNo) {
-            case 0x00: // SE HOP LIMIT
-                
-                if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) {
-                    nodeIdTarget = id.getLocalReqTarget(req_num);
-                
-                    //VERIFICAR EXISTENCIA DE REQUEST
-                    if(nodeIdTarget != null) {
+        //RTEMOVER HIT CACHE
+        //TODO MUITA COISA
+        
+        byte[] hopId = id.getNodeId(hopAddr);
+        
+        if(hopId != null)   id.addHitCache(hopAddr, hopId, nodeIdSrc, hopCount);
+        id.rmHit(nodeIdSrc, nodeIdOriginalDst, hopAddr); //Remover entrada na zone topology ou hit cache disto
+        
+        if(id.existsReq(id.getId(), nodeIdOriginalDst, req_num)) {
+            
+            //DEVOLVE TAMANHO DO USED PEERS E RESPONSIVE PEERS
+            Tuple tuple = id.addResponsivePeer(nodeIdDst, nodeIdOriginalDst, req_num, hopAddr, errNo, leftHops);
 
-                        //GET NODES NOT USED IN PREVIOUS REQUEST that have neighbours
-                        LinkedList<InetAddress> notUsedPeers = id.getExcludedNodes(nodeIdDst, nodeIdSrc, req_num);//Na pesquisa pelo request e ao contrario src e dst
+            int responsiveSize  = (int)((Tuple)(tuple.y)).x; //no de peers que responderam
+            int usedSize        = (int)((Tuple)(tuple.y)).y; //no de peers a quem enviamos
 
-                        //ALREADY TRIED ALL PEERS
-                        if(notUsedPeers.size() == 0) {
-                            //WHAT TO DO????
-                            System.out.println("NO ROUTE(ALL PEERS TRIED)!");
-                        }else {//TRY REMAINING PEERS
+            byte strongerErrNo  = (byte)tuple.x; //ERRO MAIS FORTE DOS JA RECEBIDOS
+            
+            LinkedList<InetAddress> peers = id.getReqPeers(hopAddr);
+        
+            if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) {//SE PARA MIM
 
-                            while(notUsedPeers.size() > 0) {
+                if(usedSize == 1) {//Se estava na zone ou na hit cache
+                    
+                    if(errNo == 0x01 && strongerErrNo != 0x03) {//PRIMEIRO QUE RECEBE NOS PROXIMOS DESCARTA
+                        
+                        byte[] reply = RReq.dumpLocal(id, nodeIdOriginalDst, leftHops + id.config.getHopLimit());
+                        control.pushQueueUDP(new Tuple(reply, hopAddr));
+                    }else {
+                        
+                        LinkedList<InetAddress> peersRank = id.getReqRankPeers(hopAddr);
+                        
+                        if(peersRank != null && peersRank.size() > 0) {
+                            
+                            //ADD REQUEST TO CACHE
+                            id.addReqCache(peersRank, hopAddr, nodeIdDst, nodeIdOriginalDst, hopCount, id.config.getHopLimit(), req_num, null);
 
-                                byte[] reply = RReq.dumpLocal(id, nodeIdDst, id.config.getHopLimit());
-                                control.pushQueueUDP(new Tuple(reply, notUsedPeers.poll()));
+                            //SEND REQUEST
+                            for(InetAddress val : peersRank) {
+                                byte[] reply = RReq.dumpLocal(id, nodeIdOriginalDst, id.config.getHopLimit());
+                                control.pushQueueUDP(new Tuple(reply, val));
                             }
+                        }else {
+                            
+                            //REMOVE LOCAL REQUEST
+                            id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
+
+                            //TRANSMIT TO TCP
+                            control.pushQueueTCP(null, new ByteArray(req_num), null, null);
                         }
-                    }else { //REQUEST LOST
-                        //WHAT TO DO????
-                        System.out.println("LOCAL REQUEST LOST!"); 
+                    }
+                
+                }else if(usedSize < peers.size()) { //se ja tinha tentado o rank
+                    
+                    if(errNo == 0x01 && strongerErrNo != 0x03) {//PRIMEIRO QUE RECEBE NOS PROXIMOS DESCARTA
+                        
+                        byte[] reply = RReq.dumpLocal(id, nodeIdOriginalDst, leftHops + id.config.getHopLimit());
+                        control.pushQueueUDP(new Tuple(reply, hopAddr));
+                    }else {
+                        
+                        LinkedList<InetAddress> peersRemaining = id.getExcludedNodes(nodeIdDst, nodeIdOriginalDst, req_num);
+                        
+                        if(peersRemaining != null && peersRemaining.size() > 0) {
+                            
+                            //ADD REQUEST TO CACHE
+                            id.addReqCache(peersRemaining, hopAddr, nodeIdDst, nodeIdOriginalDst, hopCount, id.config.getHopLimit(), req_num, null);
+
+                            //SEND REQUEST
+                            for(InetAddress val : peersRemaining) {
+                                byte[] reply = RReq.dumpLocal(id, nodeIdOriginalDst, id.config.getHopLimit());
+                                control.pushQueueUDP(new Tuple(reply, val));
+                            }
+                        }else {
+                            
+                            //REMOVE LOCAL REQUEST
+                            id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
+
+                            //TRANSMIT TO TCP
+                            control.pushQueueTCP(null, new ByteArray(req_num), null, null);
+                        }
+                    }
+                }else {
+                
+                    //REMOVE LOCAL REQUEST
+                    id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
+                    
+                    //TRANSMIT TO TCP
+                    control.pushQueueTCP(null, new ByteArray(req_num), null, null);
+                }
+            }else {
+                
+                //GET ORIGINAL REQUEST VALUES + hopadvised
+                RReq requestPDU = id.getReqValues(nodeIdDst, nodeIdOriginalDst, req_num);
+                
+                if(usedSize == 1) {//Se estava na zone ou na hit cache
+                    
+                    //DEVOLVER LOGO OUY CONTINUAR COM PEDIDOS???????????PARA JA ESTA CONTINUAR COM PEDIDOS
+                    LinkedList<InetAddress> peersRank = id.getReqRankPeers(hopAddr);
+
+                    if(peersRank != null && peersRank.size() > 0) {
+
+                        //ADD REQUEST TO CACHE
+                        id.addReqCache(peersRank, hopAddr, nodeIdDst, nodeIdOriginalDst, hopCount, id.config.getHopLimit(), req_num, null);
+
+                        //SEND REQUEST
+                        for(InetAddress val : peersRank) {
+                            byte[] reply = RReq.dumpRemoteWithValues(nodeIdDst, nodeIdOriginalDst, requestPDU.hop_count, requestPDU.hop_max, requestPDU.key, req_num);
+                            control.pushQueueUDP(new Tuple(reply, val));
+                        }
+                    }else { // Se So tinha 1 nodo a quem mandar
+                        
+                        //GET ADDRESS TO WhICH RETURN
+                        InetAddress addr = id.getRReqHopAddr(nodeIdOriginalDst, nodeIdDst, req_num);
+                        
+                        //DEVOLVER ERRO
+                        byte[] reply = RErr.dumpRemote(raw, hopCount);
+                        control.pushQueueUDP(new Tuple(reply, addr));
+                        
+                        //REMOVE LOCAL REQUEST
+                        id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
+                    }
+                }else if(usedSize < peers.size()) { //se ja tinha tentado o rank
+                    
+                    LinkedList<InetAddress> peersRemaining = id.getExcludedNodes(nodeIdDst, nodeIdOriginalDst, req_num);
+                        
+                    if(peersRemaining != null && peersRemaining.size() > 0) {
+
+                        //ADD REQUEST TO CACHE
+                        id.addReqCache(peersRemaining, hopAddr, nodeIdDst, nodeIdOriginalDst, hopCount, id.config.getHopLimit(), req_num, null);
+
+                        //SEND REQUEST
+                        for(InetAddress val : peersRemaining) {
+                            byte[] reply = RReq.dumpRemoteWithValues(nodeIdDst, nodeIdOriginalDst, requestPDU.hop_count, requestPDU.hop_max, requestPDU.key, req_num);
+                            control.pushQueueUDP(new Tuple(reply, val));
+                        }
+                    }else {
+                        
+                        //GET ADDRESS TO WhICH RETURN
+                        InetAddress addr = id.getRReqHopAddr(nodeIdOriginalDst, nodeIdDst, req_num);
+                        
+                        
+                        //DEVOLVER ERRO Mais Forte
+                        byte[] reply = RErr.dumpLocal(strongerErrNo, hopMax, requestPDU.hopAdvised, id, nodeIdOriginalDst, nodeIdDst, req_num);  
+                        control.pushQueueUDP(new Tuple(reply, addr));
+                        
+                        //REMOVE LOCAL REQUEST
+                        id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
                     }
                     
-                } else {
-                    if(hopCount<hopMax) {
-                        InetAddress nextHopAddr = id.getLocalReqAddr(nodeIdDst, nodeIdSrc, req_num);
-                        byte[] reply = RErr.dumpRemote(raw, hopCount);
-                        control.pushQueueUDP(new Tuple(reply, nextHopAddr));
-                    }
-                }
-                
-                break;
-            case 0x01: // SE HOP LIMIT MAS TEM VISAO
-                
-                if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) {
-                    //TENTAR O MESMO MAS COM MAIS HOPS
-                    byte[] reply = RReq.dumpLocal(id, nodeIdDst, id.config.getHopLimit() * 2);
-                    control.pushQueueUDP(new Tuple(reply, hopAddr));
                 }else {
-                    if(hopCount<hopMax) {
-                        InetAddress nextHopAddr = id.getLocalReqAddr(nodeIdDst, nodeIdSrc, req_num);
-                        byte[] reply = RErr.dumpRemote(raw, hopCount);
-                        control.pushQueueUDP(new Tuple(reply, nextHopAddr));
-                    }
+                
+                    //GET ADDRESS TO WhICH RETURN
+                    InetAddress addr = id.getRReqHopAddr(nodeIdOriginalDst, nodeIdDst, req_num);
+
+                    //DEVOLVER ERRO
+                    byte[] reply = RErr.dumpLocal(strongerErrNo, hopMax, requestPDU.hopAdvised, id, nodeIdOriginalDst, nodeIdDst, req_num); 
+                    control.pushQueueUDP(new Tuple(reply, addr));
+
+                    //REMOVE LOCAL REQUEST
+                    id.rmReqCache(nodeIdOriginalDst, nodeIdDst, req_num);
                 }
                 
-                break;
-            case 0x02: //SE PERDEU ROUTE, NORMALMENTE RESPOSTA A UM REPLY REMOVER ENTRADA
-                
-                if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) {
-                    nodeIdTarget = id.getLocalReqTarget(req_num);
-                    id.rmHit(nodeIdDst, nodeIdTarget, hopAddr);
-                    System.out.println("NODE LOST ROUTE!");
-                }else {
-                    if(hopCount<hopMax) {
-                        InetAddress nextHopAddr = id.getLocalReqAddr(nodeIdDst, nodeIdSrc, req_num);
-                        byte[] reply = RErr.dumpRemote(raw, hopCount);
-                        control.pushQueueUDP(new Tuple(reply, nextHopAddr));
-                    }
-                }
-                
-                break;
-            default:
-                System.out.println("WRONG ERRNO!");
-                break;
+            }
+        }else {
+        
+            //ACRESCENTAR PONTOS???
+            return;
         }
     }
 
+    //TODO COM ERRNO!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     static byte[] dumpRemote(byte[] raw, int hopCount) {
     
         int counter = 0;
@@ -176,7 +290,7 @@ public class RErr {
         return raw;
     }
 
-    static byte[] dumpLocal(byte errNo, int hopCount, Node node, byte[] nodeIdDst, byte[] req_num) {
+    static byte[] dumpLocal(byte errNo, int hopMax, int hopAdvised, Node node, byte[] nodeIdOriginalDst, byte[] nodeIdDst, byte[] req_num) {
         byte[] id               = node.getId();
         
         int counter=0, limit = 0, it = 0;
@@ -184,7 +298,7 @@ public class RErr {
         
         int len = 1 + 1 + 4 + id.length + nodeIdDst.length + 4 + 4 + req_num.length; //PDUTYPE+PDUSECURity+PDUTOTALSIZE+NODEIDSRC+NODEIDDST+PUBKEY+dw+SEQNUM+PEERS
         byte[] raw = new byte[len];
-        
+        ByteBuffer buffer = ByteBuffer.allocate(4);// VaRIAVEL AUXILIAR PARA BUFFER DE NUMEROS
         
         //PDU TYPE
         raw[counter++] = 0x03;
@@ -194,13 +308,31 @@ public class RErr {
         raw[counter++] = errNo;
         limit++;
         
+        //SE HOP LIMIT MAS CONHECE
+        if(errNo == 0x01){
+            buffer.putInt(hopAdvised);
+            tmp = buffer.array();
+            limit+=4;
+            for(; counter<limit; counter++) {
+                raw[counter] = tmp[it++];
+            }
+            it = 0;
+        }
+        
         //PDU TOTAL SIZE
-        ByteBuffer buffer = ByteBuffer.allocate(4);
+        buffer.clear();
         buffer.putInt(len);
         tmp = buffer.array();
         limit+=4;
         for(; counter<limit; counter++) {
             raw[counter] = tmp[it++];
+        }
+        it = 0;
+        
+        //NODEIDOriginalSRC DATA
+        limit+=id.length;
+        for(; counter<limit; counter++) {
+            raw[counter] = nodeIdOriginalDst[it++];
         }
         it = 0;
         
@@ -230,7 +362,7 @@ public class RErr {
         
         //HopLimit
         buffer.clear();
-        buffer.putInt(node.config.getHopLimit());
+        buffer.putInt(hopMax);
         tmp = buffer.array();
         limit+=4;
         for(; counter<limit; counter++) {

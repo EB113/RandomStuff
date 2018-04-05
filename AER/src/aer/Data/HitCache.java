@@ -72,7 +72,7 @@ public class HitCache {
             HashMap<ByteArray, Info> tmpMap        = this.hmap.get(nodeIdDst);
             ByteArray index                        = null;
             
-            if(tmpMap.size() >= config.getHitArraySize()) {
+            if(tmpMap.size() >= config.getHitMapSize()) {
                 
                 if(tmpMap.containsKey(nodeIHopId)) {
                     Info tmpInfo = tmpMap.get(nodeIHopId);

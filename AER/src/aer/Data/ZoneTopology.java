@@ -117,7 +117,7 @@ public class ZoneTopology {
                         this.hmap.put(peerId, tmp1);
                     }
                 }
-            }else if(!peerId.equals(new ByteArray(myid)) && this.hmap.size() < config.getZoneCacheSize()){//Se nao tem o peer na tabela 
+            }else if(this.hmap.size() < config.getZoneCacheSize()){//Se nao tem o peer na tabela 
                 //System.out.println("2WTF!!!!!!!!!!!!!?????????????");
                 HashMap<ByteArray, Info> tmp2 = new HashMap<>();
                 info = new Info(addr6, 0, peerDist, seq_num);
@@ -177,13 +177,14 @@ public class ZoneTopology {
         });*/
     }
     
-    
-    public LinkedList<Tuple> getRoutes(int maxHops) {
+    //ROUTES COM RANk
+    //RETURN TUPLE <ADDR,DIST>
+    public LinkedList<Tuple> getRankRoutes(int maxHops) {
         LinkedList<Tuple> peers = new LinkedList<>();
         
         this.hmap.forEach((k1, v1) -> {
             v1.forEach((k2, v2) -> {
-                if(v2.hop_dist <= maxHops && (k1.getData().equals(k2.getData()))) {
+                if(v2.hop_dist <= maxHops) {
                     Tuple tuple = new Tuple(v2.hop_addr, v2.hop_dist);
                     peers.push(tuple);
                 }
@@ -193,7 +194,26 @@ public class ZoneTopology {
         return peers;
     }
     
+    //ROUTES SEM RANK
+    //RETURN TUPLE <ADDR,DIST>
+    public LinkedList<Tuple> getRoutes(int maxHops) {
+        LinkedList<Tuple> peers = new LinkedList<>();
+        
+        this.hmap.forEach((k1, v1) -> {
+            v1.forEach((k2, v2) -> {
+                if(v2.hop_dist <= maxHops) {
+                    Tuple tuple = new Tuple(v2.hop_addr, v2.hop_dist);
+                    peers.push(tuple);
+                }
+            });
+        });
+        
+        return peers;
+    }
+    
+    //REUTRN TUPLE <BYTE[], DIST>
     public LinkedList<Tuple> getPeers(int maxHops) {
+        
         LinkedList<Tuple> peers = new LinkedList<>();
         
         this.hmap.forEach((k1, v1) -> {
@@ -243,18 +263,54 @@ public class ZoneTopology {
     }
 
     //NESTE MOMENTO ESTA PARA TODOS
-    LinkedList<InetAddress> getReqPeers() {
+    LinkedList<InetAddress> getReqRankPeers(InetAddress hopAddr) {
         LinkedList<InetAddress> ip_list = null;
         LinkedList<Tuple> tuple_list = getRoutes(1);
         
-        if(tuple_list.size() > 0) {
-            ip_list = new LinkedList<>();
-            
-            for(Tuple tup : tuple_list) {
-                ip_list.push((InetAddress)tup.x);
+        if(hopAddr != null){
+            if(tuple_list.size() > 0) {
+                ip_list = new LinkedList<>();
+
+                for(Tuple tup : tuple_list) {
+                    if(!hopAddr.equals((InetAddress)tup.x)) ip_list.push((InetAddress)tup.x);
+                }
+            }
+        }else {
+            if(tuple_list.size() > 0) {
+                ip_list = new LinkedList<>();
+
+                for(Tuple tup : tuple_list) {
+                    ip_list.push((InetAddress)tup.x);
+                }
             }
         }
+        return ip_list;
+    }
+    
+    
+    
+    //NESTE MOMENTO ESTA PARA TODOS
+    LinkedList<InetAddress> getReqPeers(InetAddress hopAddr) {
+        LinkedList<InetAddress> ip_list = null;
+        LinkedList<Tuple> tuple_list = getRoutes(1);
         
+        if(hopAddr != null){
+            if(tuple_list.size() > 0) {
+                ip_list = new LinkedList<>();
+
+                for(Tuple tup : tuple_list) {
+                    if(!hopAddr.equals((InetAddress)tup.x)) ip_list.push((InetAddress)tup.x);
+                }
+            }
+        }else {
+            if(tuple_list.size() > 0) {
+                ip_list = new LinkedList<>();
+
+                for(Tuple tup : tuple_list) {
+                    ip_list.push((InetAddress)tup.x);
+                }
+            }
+        }
         return ip_list;
     }
 

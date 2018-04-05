@@ -21,6 +21,20 @@ import java.util.LinkedList;
  * @author pedro
  */
 public class RReq {
+    int hop_count;
+    int hop_max;
+    byte[] key;
+    
+    int hopAdvised;
+    
+    public RReq(int hop_count, int hop_max, byte[] key, int hopAdvised) {
+        this.hop_count  = hop_count;
+        this.hop_max    = hop_max;
+        this.key        = key;
+        
+        this.hopAdvised = hopAdvised;
+    }
+    
     public static void load(byte[] raw, Node id, InetAddress peerAddr, Controller control) {
         
         int counter             = 1, limit = 1, it = 0; //Auxiliary variables
@@ -65,6 +79,7 @@ public class RReq {
             
             //KEY
             limit+=keySize;
+            peerPubKey = new byte[keySize];
             for(;counter<limit; counter++) peerPubKey[it++] = raw[counter];
             it = 0;
         }
@@ -95,20 +110,31 @@ public class RReq {
         LinkedList<InetAddress> usedPeers = new LinkedList<>(); //ARRAY COMPEERS USADOS PARA REENCAMINHA PACOTE
         
         if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) { //SE PARA MIM
-            //System.out.println("PARA MIM!");
-            //Se Route Reply corre mal tentar outro????
-            //?????????????????????????????????????????
+            
+            //ADICIONAR HIT CACHE
+            //Adicionar Rota na Hit Cache
+            byte[] nodeHopId = id.getNodeId(peerAddr);
+            if(nodeHopId != null)   id.addHitCache(peerAddr, nodeHopId, nodeIdSrc, hopCount);
             
             //CRIAR UM ROUTE REPLY
             byte[] reply = RRep.dumpLocal(nodeIdSrc, hopCount, id, secure, req_num);
             control.pushQueueUDP(new Tuple(reply, peerAddr));
-        } else if(Crypto.cmpByteArray(id.getId(), nodeIdSrc)) {
-            //DO NOTHING, IM THE ORIGIN OF REQUEST
-            //System.out.println("FUI EU!");
+        } else if(Crypto.cmpByteArray(id.getId(), nodeIdSrc) || id.existsReq(nodeIdSrc, nodeIdDst, req_num)){
+            
+            //VALE A PENA ADICIONAR?
+            //ADICIONAR HIT CACHE
+            //Adicionar Rota na Hit Cache
+            byte[] nodeHopId = id.getNodeId(peerAddr);
+            if(nodeHopId != null)   id.addHitCache(peerAddr, nodeHopId, nodeIdSrc, hopCount);
+            
+            return;
         } else {
-            //System.out.println(Crypto.toHex(id.getId()));
-            //System.out.println(Crypto.toHex(nodeIdDst));
-            //System.out.println("PARA Outro!" + Crypto.cmpByteArray(id.getId(), nodeIdDst) + " | " + Arrays.equals(id.getId(), nodeIdDst));
+            
+            //ADICIONAR HIT CACHE
+            //Adicionar Rota na Hit Cache
+            byte[] nodeHopId = id.getNodeId(peerAddr);
+            if(nodeHopId != null)   id.addHitCache(peerAddr, nodeHopId, nodeIdSrc, hopCount);
+            
             Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
             if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
             
@@ -118,7 +144,7 @@ public class RReq {
                 if(hopCount+(int)peer.y<hopMax) { //SE HOP COUNT AINDA BOM NOTA FALTA 
                     
                     //ADD REQUEST TO CACHE
-                    id.addReqCache(usedPeers, peerAddr, nodeIdSrc, nodeIdDst, hopCount, req_num);
+                    id.addReqCache(usedPeers, peerAddr, nodeIdSrc, nodeIdDst, hopCount, hopMax, req_num, peerPubKey);
                     
                     //new RReq para peerRouteId
                     byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
@@ -127,27 +153,32 @@ public class RReq {
                 } else { //SE HOP COUNT MAX
                     
                     //RError mas tem caminho
-                    byte[] reply = RErr.dumpLocal((byte)0x01, hopCount, id, nodeIdSrc, req_num);
+                    byte[] reply = RErr.dumpLocal((byte)0x01, hopCount, (int)peer.y, id, nodeIdDst, nodeIdSrc, req_num);
                     control.pushQueueUDP(new Tuple(reply, peer.x));
                 }
             }else { //SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
-                if(hopCount+1<hopMax) {
+                if(hopCount+2<hopMax) {
                     
                     //SENAO ROUTE REQUEST OPTIMISTA
-                    LinkedList<InetAddress> peerList = id.getReqPeers(); //Get Most Probable Peers
-                    
-                    //ADD REQUEST TO CACHE
-                    id.addReqCache(peerList, peerAddr, nodeIdSrc, nodeIdDst, hopCount, req_num);
-                    
-                    //SEND REQUEST
-                    for(InetAddress val : peerList) {
-                        byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
-                        control.pushQueueUDP(new Tuple(reply, val));
+                    LinkedList<InetAddress> peerList = id.getReqRankPeers(peerAddr); //Get Most Probable Peers Without the origin node
+                    if(peerList != null && peerList.size() > 0){
+                        //ADD REQUEST TO CACHE
+                        id.addReqCache(peerList, peerAddr, nodeIdSrc, nodeIdDst, hopCount, hopMax, req_num, peerPubKey);
+
+                        //SEND REQUEST
+                        for(InetAddress val : peerList) {
+                            byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
+                            control.pushQueueUDP(new Tuple(reply, val));
+                        }
+                    }else {
+                        //ROUTE ERROR NO ROUTE
+                        byte[] reply = RErr.dumpLocal((byte)0x02, hopCount, 0, id, nodeIdDst, nodeIdSrc, req_num);
+                        control.pushQueueUDP(new Tuple(reply, peerAddr));
                     }
                     
-                } else {
+                }else {
                     //ROUTE ERROR HOP LIMIT
-                    byte[] reply = RErr.dumpLocal((byte)0x00, hopCount, id, nodeIdSrc, req_num);
+                    byte[] reply = RErr.dumpLocal((byte)0x00, hopCount, 0, id, nodeIdDst, nodeIdSrc, req_num);
                     control.pushQueueUDP(new Tuple(reply, peerAddr));
                 }
             }
@@ -286,6 +317,114 @@ public class RReq {
         
         //System.out.println(raw.length + "<---RREQREMOTE: " + Crypto.toHex(raw));
         System.out.println("<---RREQREMOTE: ");
+        return raw;
+    }
+    
+    public static byte[] dumpRemoteWithValues(byte[] nodeIdSrc, byte[] nodeIdDst, int hopCount, int hopMax, byte[] key, byte[] req_num) {
+        
+        
+        int counter=0, limit = 0, it = 0;
+        byte[] tmp = null;
+        
+        byte secure = 0x00;
+        
+        int len = 0;
+        
+        
+        if(key != null){
+            secure = 0x01;
+            len = 1 + 1 + 4 + nodeIdSrc.length + nodeIdDst.length + 4 + key.length + 4 + 4 + req_num.length; //PDUTYPE+PDUSECURity+PDUTOTALSIZE+NODEIDSRC+NODEIDDST+PUBKEY+dw+SEQNUM+PEERS
+        }else
+            len = 1 + 1 + 4 + nodeIdSrc.length + nodeIdDst.length + 4 + 4 + req_num.length;
+        
+        byte[] raw  = new byte[len];
+        
+        //System.out.println(len + "REQLEN: " + node.getReqNum().length);
+        
+        //PDU TYPE
+        raw[counter++] = 0x01;
+        limit++;
+        
+        //System.out.print("|" + counter + "," + limit + "|");
+        //PDU SECURITY
+        raw[counter++] = secure;
+        limit++;
+        //System.out.print("|" + limit + "|");
+        //PDU TOTAL SIZE
+        ByteBuffer buffer = ByteBuffer.allocate(4);
+        buffer.putInt(len);
+        tmp = buffer.array();
+        limit+=4;
+        for(; counter<limit; counter++) {
+            raw[counter] = tmp[it++];
+        }
+        it = 0;
+        //System.out.print("|" + counter + "," + limit + "|");
+        //NODEIDSRC DATA
+        limit+=nodeIdSrc.length;
+        for(; counter<limit; counter++) {
+            raw[counter] = nodeIdSrc[it++];
+        }
+        it = 0;
+        //System.out.print("|" + counter + "," + limit + "|");
+        //NODEIDDST DATA
+        limit+=nodeIdDst.length;
+        for(; counter<limit; counter++) {
+            raw[counter] = nodeIdDst[it++];
+        }
+        it = 0;
+        //System.out.print("|" + counter + "," + limit + "|");
+        //SE SECURITY ACTIVE
+        if(secure == 0x01) {
+            //PUBKEY SIZE
+            buffer.clear();
+            buffer.putInt(key.length);
+            tmp = buffer.array();
+            limit+=4;
+            for(; counter<limit; counter++) {
+                raw[counter] = tmp[it++];
+            }
+            it = 0;
+
+            //PUBKEY
+            limit+=key.length;
+            for(; counter<limit; counter++) {
+                raw[counter] = key[it++];
+            }
+            it = 0;
+        }
+        //System.out.print("|" + counter + "," + limit + "|");
+        //HopCount
+        buffer.clear();
+        buffer.putInt(hopCount);
+        tmp = buffer.array();
+        limit+=4;
+        for(; counter<limit; counter++) {
+            raw[counter] = tmp[it++];
+        }
+        it = 0;
+        //System.out.print("|" + counter + "," + limit + "|");
+        //HopLimit
+        buffer.clear();
+        buffer.putInt(hopMax);
+        tmp = buffer.array();
+        limit+=4;
+        for(; counter<limit; counter++) {
+            raw[counter] = tmp[it++];
+        }
+        it = 0;
+        //System.out.print("|" + counter + "," + limit + "|");
+        //REQUEST SEQUENCE NUM
+        limit+=req_num.length;
+        for(; counter<limit; counter++) {
+            raw[counter] = req_num[it++];
+        }
+        it = 0;
+        //System.out.print("|" + counter + "," + limit + "|");
+        
+        //System.out.println(raw.length + "<---RREQLOCAL: " + Crypto.toHex(raw));
+        System.out.println("<---RREQREMOTE ");
+        
         return raw;
     }
 }

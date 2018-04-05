@@ -23,8 +23,8 @@ public class Config {
     int hitCacheSize           = 30; //Tamanho da Cache dos HIts
 
     int zoneMapSize            = 10; //size per map
-    int reqArraySize           = 10; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
-    int hitArraySize           = 10;
+    int reqMapSize           = 10; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
+    int hitMapSize           = 10;
     
     long zoneTimeDelta         = 15;  //Tempo max entre peer hellos  (s)
     long reqTimeDelta          = 600; //Tempo de vida dos Requests  (s)
@@ -162,20 +162,20 @@ public class Config {
         this.helloTimer = helloTimer;
     }
 
-    public int getReqArraySize() {
-        return reqArraySize;
+    public int getReqMapSize() {
+        return reqMapSize;
     }
 
-    public void setReqArraySize(int reqArraySize) {
-        this.reqArraySize = reqArraySize;
+    public void setReqMapSize(int reqArraySize) {
+        this.reqMapSize = reqArraySize;
     }
 
-    public int getHitArraySize() {
-        return hitArraySize;
+    public int getHitMapSize() {
+        return hitMapSize;
     }
 
-    public void setHitArraySize(int hitArraySize) {
-        this.hitArraySize = hitArraySize;
+    public void setHitMapSize(int hitArraySize) {
+        this.hitMapSize = hitArraySize;
     }
 
     public int getQueueSize() {

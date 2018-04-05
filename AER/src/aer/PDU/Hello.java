@@ -23,8 +23,8 @@ public class Hello {
         
         byte[] id               = node.getId();
         byte[] seq              = node.getSeqNum();
-        LinkedList<Tuple> peers = node.getZonePeersIds(1);
         int zoneSizeHello       = node.config.getZoneSizeHello();
+        LinkedList<Tuple> peers = node.getZonePeersIds(zoneSizeHello);
         
         int peerslen = 0, counter=0, limit = 0, it = 0;
         byte[] tmp = null;
@@ -115,6 +115,7 @@ public class Hello {
         byte[] tmp              = new byte[4];
         byte[] seq_num          = new byte[4];
         byte[] nodeId           = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
+        byte[] nodeIdpeer       = new byte[32];
         ArrayList<Tuple> tuple  = new ArrayList<>();
         Tuple t                 = null;
         
@@ -145,19 +146,26 @@ public class Hello {
         it = 0;
         
         
-        if(!(new ByteArray(id.getId())).equals(new ByteArray(nodeId))){
+        if(!(Crypto.cmpByteArray(nodeId, id.getId()))){
+            
+            
             //GET PEERS DATA
             if(zoneSizeHello == 1){
+                
                 limit=totalSize;
                 for(;counter<limit;){
                     while(it<32){
-                        nodeId[it++] = raw[counter++];
+                        nodeIdpeer[it++] = raw[counter++];
                     }
                     it = 0;
-                    t = new Tuple(2, nodeId.clone()); //Sera que tenho que criar um novo ou o java ja faz o clone???
-                    tuple.add(t);
+                    if(!(Crypto.cmpByteArray(nodeIdpeer, id.getId()))){
+                        
+                        t = new Tuple(2, nodeIdpeer.clone()); //Sera que tenho que criar um novo ou o java ja faz o clone???
+                        tuple.add(t);
+                    }
                 }
             }else{
+                System.out.println("SIZE>1");
                 limit=totalSize;
                 for(;counter<limit;){
                     //GET HOP DIST
@@ -171,12 +179,15 @@ public class Hello {
 
                     //GET NODE ID
                     while(it<32){
-                        nodeId[it++] = raw[counter++];
+                        nodeIdpeer[it++] = raw[counter++];
                     }
                     it = 0;
-
-                    t = new Tuple(hopDist+1, nodeId.clone()); //Sera que tenho que criar um novo ou o java ja faz o clone???
-                    tuple.add(t);
+                    
+                    if(!(Crypto.cmpByteArray(nodeIdpeer, id.getId()))){
+                        
+                        t = new Tuple(hopDist+1, nodeIdpeer.clone()); //Sera que tenho que criar um novo ou o java ja faz o clone???
+                        tuple.add(t);
+                    }
                 }
             }
 

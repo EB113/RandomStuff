@@ -21,7 +21,8 @@ public class Data {
         int counter             = 1, limit = 1, it = 0; //Auxiliary variables
         
         byte secure             = 0x00;
-        
+        byte[] nodeIdSrc        = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
+        byte[] nodeIdDst        = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
         
         
         

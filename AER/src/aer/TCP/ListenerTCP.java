@@ -104,13 +104,16 @@ public class ListenerTCP implements Runnable{
                                 System.out.println("INZONE");
                                 //ADD REQUEST TO CACHE
                                 usedPeers.push((InetAddress)peer.x);
-                                id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, req_num);
+                                id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.config.getHopLimit(), req_num, null);
                                 
                                 //Criar Queue e ficar a espera
                                 this.control.pushQueueUDP(new Tuple(req_pdu, peer.x));
                                 
                                 //WAIT REPLY
                                 coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
+                                
+                                //SE NAO TEM RESPOSTA TENTAR TODOS OS OUTROS NODOS
+                                
                                 
                                 Object obj = null;
                                 if(coms != null){
@@ -123,11 +126,11 @@ public class ListenerTCP implements Runnable{
                                 
                             }else { // SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
                                 System.out.println("OUTZONE");
-                                LinkedList<InetAddress> peerList = id.getReqPeers();
+                                LinkedList<InetAddress> peerList = id.getReqRankPeers(null);
                                 if(peerList != null){
                                     
-                                    //SEND REQUEST
-                                    id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, req_num);
+                                    //SEND REQUEST mELHOR nODOS
+                                    id.addReqCache(usedPeers, null, this.id.getId(), nodeIdDst, 0, this.config.getHopLimit(), req_num, null);
                                     for(InetAddress addr : peerList)
                                     {
                                         //ADD REQUEST TO CACHE
@@ -141,6 +144,8 @@ public class ListenerTCP implements Runnable{
                                     //WAIT REPLY
                                     coms = this.control.popQueueTCP(new ByteArray(req_num), this.id.getPubKey());
                                     
+                                    
+                                    //SE NAO TEM RESPOSTA TENTAR TODOS OS OUTROS
                                     Object obj = null;
                                     try {
                                         obj = coms.getComs().poll(20, TimeUnit.SECONDS);

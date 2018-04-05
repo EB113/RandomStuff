@@ -7,9 +7,11 @@ package aer.Data;
 
 // Class que contem informacao relativa a Request Activos.
 
+import aer.PDU.RReq;
 import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
+import aer.miscelaneous.Tuple;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
@@ -26,17 +28,27 @@ public class RemoteRequestCache {
     //Value Class
     class Info {
         byte[]                  nodeId_dst;
-        InetAddress             nodeAddr_hop;
-        LinkedList<InetAddress> usedPeers;
-        byte[]                  req_num;
-        long                    timestamp;
+        InetAddress             nodeAddr_hop;//USADO PARA RETORNAR 
+        byte[]                  peerKey;
         
-        Info(LinkedList<InetAddress> usedPeers, InetAddress nodeId_hop, byte[] nodeId_dst,  byte[] req_num) {
-            this.req_num         = req_num;
-            this.nodeId_dst      = nodeId_dst;
-            this.nodeAddr_hop    = nodeId_hop;
-            this.usedPeers      = usedPeers;
-            this.timestamp       = System.currentTimeMillis();
+        int                     advisedHop; //SE ERRO E CONHECER HOP QUAL A DIST?
+        byte                    errNo; //USADO PARA COLOCAR ERRO PREDOMINANTE QUE E O 0x01
+        LinkedList<InetAddress> usedPeers;
+        LinkedList<InetAddress> responsivePeers;
+        
+        long                    timestamp;
+        int                     hop_count;
+        int                     hop_max;
+        
+        Info(LinkedList<InetAddress> usedPeers, InetAddress nodeId_hop, byte[] nodeId_dst, int hop_count, int hop_max, byte[] peerKey) {
+            this.nodeId_dst         = nodeId_dst;
+            this.nodeAddr_hop       = nodeId_hop;
+            this.usedPeers          = usedPeers;
+            this.responsivePeers    = new LinkedList();
+            this.timestamp          = System.currentTimeMillis();
+            this.hop_count          = hop_count;
+            this.hop_max            = hop_max;//QUANDO SE REPETE O PEDIDO POR HOP LIMIT MAS CONHECE?
+            this.peerKey            = peerKey;
         }
         
         public long getTimeStamp() {
@@ -44,39 +56,48 @@ public class RemoteRequestCache {
         }
     }
     //NODEID OF NODE THAT REQUESTED X INFO LIST
-    HashMap <ByteArray, LinkedList<Info>> hmap;
+    HashMap <ByteArray, HashMap<ByteArray, Info>> hmap;
     Config config;
     
     public RemoteRequestCache(Config config) {
        this.config  = config;
-       this.hmap    = new HashMap<ByteArray, LinkedList<Info>>();
+       this.hmap    = new HashMap<ByteArray, HashMap<ByteArray, Info>>();
     }
     
+    
+    // falta adicionar aos used peers
     //limiting arraylist size
-    public void addRequest(LinkedList<InetAddress> usedPeers, InetAddress peer_hop, byte[] nodeIdSrc_old, byte[] nodeIdDst, byte[] req_num) {
+    public void addRequest(LinkedList<InetAddress> usedPeers, InetAddress peer_hop, byte[] nodeIdSrc_old, byte[] nodeIdDst, byte[] req_num_old, int hop_count, int hop_max, byte[] peerKey) {
         
         ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
         
-        if(this.hmap.containsKey(nodeIdSrc)) {
-            LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
+        if(this.hmap.containsKey(nodeIdSrc)) {//SE JA TEM
             
-            if(tmpArray.size() >= config.getReqArraySize()) return;
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
+            
+            if(tmpMap.size() >= config.getReqMapSize()) return;
             else {
-                tmpArray.add(new Info(usedPeers, peer_hop, nodeIdDst, req_num));
-                this.hmap.put(nodeIdSrc, tmpArray);
+                if(!tmpMap.containsKey(req_num)){
+                    
+                    tmpMap.put(req_num, new Info(usedPeers, peer_hop, nodeIdDst, hop_count, hop_max, peerKey));
+                    this.hmap.put(nodeIdSrc, tmpMap);
+                }
             }
             
         }else{
-            if(this.hmap.size() < config.getRequestCacheSize()) {
-                LinkedList<Info> tmpArray = new LinkedList<>();
-                Info info = new Info(usedPeers, peer_hop, nodeIdDst, req_num);
+            if(this.hmap.size() < config.getRequestCacheSize()) {//SE TEM ESPACO
                 
-                tmpArray.add(info);
+                HashMap<ByteArray, Info> tmpMap = new HashMap<>();
+                Info info = new Info(usedPeers, peer_hop, nodeIdDst, hop_count, hop_max, peerKey);
                 
-                this.hmap.put(nodeIdSrc, tmpArray);
-                return;
+                tmpMap.put(req_num, info);
+                this.hmap.put(nodeIdSrc, tmpMap);
+                
             }
         }
+        
+        return;
     }
     
     public Object removeRequest(ByteArray nodeId) {
@@ -86,14 +107,14 @@ public class RemoteRequestCache {
     public void gcReq() {
         long now  = System.currentTimeMillis();
         
-        Iterator<Map.Entry<ByteArray, LinkedList<Info>>> iter1 = this.hmap.entrySet().iterator();
+        Iterator<Map.Entry<ByteArray, HashMap<ByteArray, Info>>> iter1 = this.hmap.entrySet().iterator();
         
         while (iter1.hasNext()) {
-            Map.Entry<ByteArray, LinkedList<Info>>entry1 = iter1.next();
+            Map.Entry<ByteArray, HashMap<ByteArray, Info>>entry1 = iter1.next();
             
             if(entry1.getValue().size() > 0) {
                 
-                entry1.getValue().removeIf(entry2 -> (now - entry2.getTimeStamp() > config.getReqTimeDelta()));
+                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getReqTimeDelta()));
                 
             } else iter1.remove();
             
@@ -117,31 +138,43 @@ public class RemoteRequestCache {
         });*/
     }
 
-    InetAddress rmReq(byte[] nodeIdDst, byte[] nodeIdSrc_old, byte[] req_num) {
+    InetAddress rmReq(byte[] nodeIdDst, byte[] nodeIdSrc_old, byte[] req_num_old) {
+        
         InetAddress hopAddr = null;
         ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
-        LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
+        ByteArray req_num   = new ByteArray(req_num_old);
         
-        if(tmpArray !=null){
-            for(Info info : tmpArray) {
-                if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst) && Crypto.cmpByteArray(info.req_num, req_num)) {
-                    hopAddr = info.nodeAddr_hop;
-                    tmpArray.remove(info);
-                }
+        if(this.hmap.containsKey(nodeIdSrc)) {
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
+
+            if(tmpMap.containsKey(req_num)) {
+                
+                Info info = tmpMap.get(req_num);
+                
+                hopAddr = info.nodeAddr_hop;
+                tmpMap.remove(req_num);
             }
-            this.hmap.put(nodeIdSrc, tmpArray);
         }
         
         return hopAddr;
     }
 
-    byte[] getReqTarget(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+    byte[] getReqTarget(byte[] nodeIdSrc_old, byte[] nodeIdDst, byte[] req_num_old) {
+        
         byte[] nodeId = null;
         
-        LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
         
-        for(Info info : tmpArray) {
-            if(Crypto.cmpByteArray(info.req_num, req_num)) {
+        if(this.hmap.containsKey(nodeIdSrc)) {
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
+
+            if(tmpMap.containsKey(req_num)) {
+                
+                Info info = tmpMap.get(req_num);
+                
                 nodeId = info.nodeId_dst;
             }
         }
@@ -149,31 +182,124 @@ public class RemoteRequestCache {
         return nodeId;
     }
     
-    InetAddress getReqAddr(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
+    InetAddress getReqAddr(byte[] nodeIdDst, byte[] nodeIdSrc_old, byte[] req_num_old) {
+        
         InetAddress nodeAddr = null;
         
-        LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
-        if(tmpArray != null)
-            for(Info info : tmpArray) {
-                if(Crypto.cmpByteArray(info.req_num, req_num)) {
-                    nodeAddr = info.nodeAddr_hop;
-                }
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
+        
+        if(this.hmap.containsKey(nodeIdSrc)) {
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
+            
+            if(tmpMap.containsKey(req_num)) {
+                
+                Info info = tmpMap.get(req_num);
+                
+                if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst))  nodeAddr = info.nodeAddr_hop;
             }
+        }
         
         return nodeAddr;
     }
 
-    LinkedList<InetAddress> getIncludedNodes(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
-        LinkedList<InetAddress> usedPeers = null;
+    LinkedList<InetAddress> getIncludedNodes(byte[] nodeIdSrc_old, byte[] nodeIdDst, byte[] req_num_old) {
         
-        LinkedList<Info> tmpArray = this.hmap.get(nodeIdSrc);
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
         
-        for(Info info : tmpArray) {
-            if(Crypto.cmpByteArray(info.req_num, req_num) && Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst)) {
-                usedPeers = info.usedPeers;
+        if(this.hmap.containsKey(nodeIdSrc)) {
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
+
+            if(tmpMap.containsKey(req_num)) {
+                
+                Info info = tmpMap.get(req_num);
+                if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst)) return info.usedPeers;
+            }
+        }
+        return null;
+    }
+    
+    
+
+    Boolean existsReq(byte[] nodeIdSrc_old, byte[] nodeIdDst, byte[] req_num_old) {
+        
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
+        
+        if(this.hmap.containsKey(nodeIdSrc)) {
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
+
+            if(tmpMap.containsKey(req_num)) {
+                
+                Info info = tmpMap.get(req_num);
+                if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst)) return true;
             }
         }    
         
-        return usedPeers;
+        return false;
+    }
+
+    Tuple addResponse(byte[] nodeIdSrc_old, byte[] nodeIdOriginalDst, byte[] req_num_old, InetAddress nodeAddrHop, byte errNo, int hopAdvised) {
+        
+        //<errno,<size,size>>
+        Tuple tuple = new Tuple(null, new Tuple(0, 0));
+        
+        ByteArray nodeIdSrc = new ByteArray(nodeIdSrc_old);
+        ByteArray req_num   = new ByteArray(req_num_old);
+        
+        if(this.hmap.containsKey(nodeIdSrc)){
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
+
+            if(tmpMap.containsKey(req_num)){
+                
+                tuple.x = errNo;
+                
+                Info info = tmpMap.get(req_num);
+                
+                if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdOriginalDst)) {
+                    
+                    info.responsivePeers.add(nodeAddrHop);
+                    
+                    if(errNo == 0x01) {
+                        if(hopAdvised > info.advisedHop)    info.advisedHop = hopAdvised;
+                        info.errNo = 0x01;
+                    }
+                    
+                    else if(errNo == 0x00 && info.errNo != 0x01) {
+                        info.errNo = errNo;
+                    }
+                    
+                    ((Tuple)tuple.y).x = info.usedPeers.size();
+                    ((Tuple)tuple.y).y = info.responsivePeers.size();
+                }
+            }
+        }
+        
+        return tuple;
+    }
+
+    RReq getReqValues(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+        
+        RReq pduValues = null;
+        
+        if(this.hmap.containsKey(nodeIdSrc)){
+            
+            HashMap<ByteArray, Info> tmpMap = this.hmap.get(nodeIdSrc);
+
+            if(tmpMap.containsKey(req_num)){
+                Info info = tmpMap.get(req_num);
+                
+                if(Crypto.cmpByteArray(info.nodeId_dst, nodeIdDst)) {
+                    pduValues = new RReq(info.hop_count, info.hop_max, info.peerKey, info.advisedHop);
+                }
+            }
+        }
+        
+        return pduValues;
     }
 }

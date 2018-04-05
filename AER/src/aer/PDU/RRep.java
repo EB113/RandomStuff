@@ -221,38 +221,46 @@ public class RRep {
         hopCount++; //INCREMENTAR CONTADOR
         
         
-        
-        if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) { //SE PARA MIM
+        if(id.existsReq(nodeIdDst, nodeIdSrc, req_num)) {
             
-            //REMOVER LOCAL REQUEST CACHEnodeIdSrc
-            InetAddress addr = id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
-            if(addr !=  null) {
+            if(Crypto.cmpByteArray(id.getId(), nodeIdDst)) { //SE PARA MIM
+
+                //REMOVER LOCAL REQUEST CACHEnodeIdSrc
+                id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
+                
+                
+                //Adicionar Rota na Hit Cache
+                byte[] nodeHopId = id.getNodeId(nodeHopAddr);
+                if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdSrc, hopCount);
                 
                 //Redirecionar o Reply para o TCP, CHAVE PUBLICA DO PEER
                 control.pushQueueTCP(null, new ByteArray(req_num), nodeHopAddr, peerPubKey);
+                
+            }else {
+
+                //Adicionar Rota na Hit Cache
+                byte[] nodeHopId = id.getNodeId(nodeHopAddr);
+                if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdSrc, hopCount);
+
+                // Retirar Request da Cache
+                InetAddress nextHopAddr = id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
+
+                //INCREMENTAR HOP E REDIRECIONAR
+                if(nextHopAddr != null) {
+
+                    byte[] reply = RRep.dumpRemote(raw, hopCount, keySize);
+                    control.pushQueueUDP(new Tuple(reply, nextHopAddr));
+                }
             }
+        }else {
+            //VALE A PENA ADICIONAR?
             
             //Adicionar Rota na Hit Cache
             byte[] nodeHopId = id.getNodeId(nodeHopAddr);
-            if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdDst, hopCount);
+            if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdSrc, hopCount);
             
-        } else {
-            
-            // Retirar Request da Cache
-            InetAddress nextHopAddr = id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
-                    
-            //INCREMENTAR HOP E REDIRECIONAR
-            if(nextHopAddr != null) {
-                byte[] reply = RRep.dumpRemote(raw, hopCount, keySize);
-                control.pushQueueUDP(new Tuple(reply, nextHopAddr));
-                
-            } else { //ROUTE ERROR LOST ROUTE
-                byte[] reply = RErr.dumpLocal((byte)0x02, hopCount, id, nodeIdDst, req_num); //(raw, hopCount);
-                control.pushQueueUDP(new Tuple(reply, nodeHopAddr));
-                
-            }
+            return;
         }
-          
-    }
+    } //DEVO ADICIONAR A HIT CACHE?
 
 }

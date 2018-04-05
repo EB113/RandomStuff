@@ -7,6 +7,7 @@ package aer.Data;
 
 //Class que Contem Informacao relativa ao Nodo
 
+import aer.PDU.RReq;
 import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
@@ -245,7 +246,7 @@ public class Node {
         
         if(this.topo != null)
             synchronized(this.topo){
-                out = this.topo.getPeers(maxHops);
+                out = this.topo.getRoutes(maxHops);
             }
         
         return out;
@@ -275,12 +276,12 @@ public class Node {
             }
     }
     
-    public void addReqCache(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count, byte[] req_num) {
+    public void addReqCache(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count, int hop_max, byte[] req_num, byte[] peerKey) {
         
-        if(Crypto.cmpByteArray(id, nodeIdSrc)) {
+        if(Crypto.cmpByteArray(id, nodeIdSrc)) {// TROCAR PARA HOP COUNT == 0 mais rapido
             if(this.lrcache != null)
                 synchronized(this.lrcache){
-                    this.lrcache.addRequest(usedPeers, nodeIdDst, 0, req_num);
+                    this.lrcache.addRequest(usedPeers, nodeIdDst, req_num, hop_max);
                 }
         }else {
         
@@ -289,7 +290,7 @@ public class Node {
             if(this.rrcache != null)
                 synchronized(this.rrcache){
                     //ADD REQUEST
-                    this.rrcache.addRequest(usedPeers, nodeHopAddr, nodeIdSrc, nodeIdDst, req_num);
+                    this.rrcache.addRequest(usedPeers, nodeHopAddr, nodeIdSrc, nodeIdDst, req_num, hop_count, hop_max, peerKey);
                 }
         }
         
@@ -307,12 +308,11 @@ public class Node {
     }
 
     public InetAddress rmReqCache(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
-        InetAddress reqPeerAddr = null;
     
         if(Crypto.cmpByteArray(id, nodeIdSrc)) {
             if(this.lrcache != null)
                 synchronized(this.lrcache){
-                    return this.lrcache.rmReq(nodeIdDst, req_num);
+                    this.lrcache.rmReq(nodeIdDst, req_num);
                 }
         }else {
             if(this.rrcache != null)
@@ -321,9 +321,7 @@ public class Node {
                 }
         }
         
-        
-        
-        return reqPeerAddr;
+        return null;
     }
 
     public Tuple getHitPeer(byte[] nodeIdDst) {
@@ -337,14 +335,40 @@ public class Node {
         return out;
     }
     
-    //CHAMADA PARA OBTER PEERS A QUEM MANDAR NESTE MOMENTO ESTA PARA TODOS
-    //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!   
-    public LinkedList<InetAddress> getReqPeers() {
+    
+    public LinkedList<InetAddress> getPeers(InetAddress hopPeer) {
         LinkedList<InetAddress> out = null;
         
         if(this.topo != null)
             synchronized(this.topo){
-                out = this.topo.getReqPeers();
+                out = this.topo.getReqPeers(hopPeer);
+            }
+        
+        return out;
+    }
+    
+    //CHAMADA PARA OBTER PEERS A QUEM MANDAR COM RANK
+    //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!   
+    public LinkedList<InetAddress> getReqRankPeers(InetAddress hopPeer) {
+        LinkedList<InetAddress> out = null;
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                out = this.topo.getReqRankPeers(hopPeer);
+            }
+        
+        return out;
+    }
+
+
+    //CHAMADA PARA OBTER Todos os peers a quem mandar exceptuando 1 hop
+    //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!   
+    public LinkedList<InetAddress> getReqPeers(InetAddress hopPeer) {
+        LinkedList<InetAddress> out = null;
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                out = this.topo.getReqPeers(hopPeer);
             }
         
         return out;
@@ -387,7 +411,7 @@ public class Node {
             excludedNodes = new LinkedList<>();
 
             for(Tuple tuple : totalNodes) {
-                if(!includedNodes.contains(id)) excludedNodes.push((InetAddress)tuple.x);
+                if(!includedNodes.contains((InetAddress)tuple.x)) excludedNodes.push((InetAddress)tuple.x);
             }
         }
 
@@ -417,7 +441,7 @@ public class Node {
     }
 
     //
-    public InetAddress getLocalReqAddr(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
+    public InetAddress getRReqHopAddr(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
         InetAddress out = null;
         
         if(this.rrcache != null)
@@ -467,6 +491,51 @@ public class Node {
                 this.topo.printPeers();
             }
     }
+
+    public Boolean existsReq(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+        
+        if(Crypto.cmpByteArray(id, nodeIdDst)) {
+            if(this.lrcache != null)
+                synchronized(this.lrcache){
+                    return this.lrcache.existsReq(nodeIdDst, req_num);
+                }
+            else return false;
+        }else {
+            if(this.rrcache != null)
+                synchronized(this.rrcache){
+                    return this.rrcache.existsReq(nodeIdSrc, nodeIdDst, req_num);
+                }
+            else return false;
+        }
+    }
+
+    public Tuple addResponsivePeer(byte[] nodeIdDst, byte[] nodeIdOriginalDst, byte[] req_num, InetAddress nodeAddrHop, byte errNo, int hopAdvised) {
+        
+        if(Crypto.cmpByteArray(id, nodeIdDst)) {
+            if(this.lrcache != null)
+                synchronized(this.lrcache){
+                    return this.lrcache.addResponse(nodeIdOriginalDst, req_num, nodeAddrHop, errNo);
+                }
+            else return null;
+        }else {
+            if(this.rrcache != null)
+                synchronized(this.rrcache){
+                    return this.rrcache.addResponse(nodeIdDst, nodeIdOriginalDst, req_num, nodeAddrHop, errNo, hopAdvised);
+                }
+            else return null;
+        }
+    }
+
+    public RReq getReqValues(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+        
+        if(this.rrcache != null)
+            synchronized(this.rrcache){
+                return this.rrcache.getReqValues(nodeIdSrc, nodeIdDst, req_num);
+            }
+        else return null;
+    }
     
     
 }
+    
+    
