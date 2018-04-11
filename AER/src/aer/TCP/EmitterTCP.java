@@ -31,14 +31,14 @@ public class EmitterTCP{
     public static void main(String argv[]) throws Exception
       {/*
           
-          Socket s = new Socket(InetAddress.getByName("127.0.0.1"), 9999);
-          System.out.println("Init Client!");
-          BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
-          while(true){
+        Socket s = new Socket(InetAddress.getByName("127.0.0.1"), 9999);
+        System.out.println("Init Client!");
+        BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
+        while(true){
             System.out.print("CMD:");
             String[] splited = inFromUser.readLine().split(" "); //separa os parametros de entrada
 
-            if (splited[0].equals("GET_NEWS_FROM")){
+            if (splited[0].equals("GET")){
 
                 DataOutputStream outToServer = new DataOutputStream(s.getOutputStream());
 
@@ -56,6 +56,6 @@ public class EmitterTCP{
             }else{
                 System.out.println("Comando Não encontrado");
             }
-          }*/
+        }*/
       }
 }
