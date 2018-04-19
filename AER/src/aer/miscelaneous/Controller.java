@@ -30,7 +30,7 @@ public class Controller {
     private AtomicBoolean               watchDogFlag;
     private AtomicBoolean               UDPFlag;        
     private AtomicBoolean               TCPFlag; 
-    private PriorityBlockingQueue       queueUDP;
+    private ArrayBlockingQueue          queueUDP;
     private HashMap<ByteArray, ComsTCP> queueTCP;
             
     public Controller(int queueSize, Node id) {
@@ -39,7 +39,8 @@ public class Controller {
         this.UDPFlag       = new AtomicBoolean(true); //Flag para termino da THread
         this.TCPFlag       = new AtomicBoolean(true); //Flag para termino da THread
         
-        this.queueUDP      = new PriorityBlockingQueue<Object>(queueSize, 
+        this.queueUDP      = new ArrayBlockingQueue(queueSize);
+                /*<Object>(queueSize, 
                                         new Comparator<Object>() {
                                             @Override
                                             public int compare(Object o1, Object o2) {
@@ -55,7 +56,7 @@ public class Controller {
                                                     return 1;
                                                 }else return 0;
                                             }
-                                        }); //fILA the PDU Objects
+                                        }); //fILA the PDU Objects*/
         this.queueTCP      = new HashMap<>();//Coms com TCP
     }
     
