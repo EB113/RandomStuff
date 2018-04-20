@@ -1,3 +1,2 @@
-# AdHocNet
-Adhoc network based on AODV AND ZRP. 
-Work in Porgress.
+# VANETNet
+Simple implementation of a mixture of VANET Routing Protocols.
