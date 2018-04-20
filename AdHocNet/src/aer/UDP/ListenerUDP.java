@@ -67,12 +67,12 @@ public class ListenerUDP implements Runnable{
                     //What to do???? receive method raises exception
                 }
             }else return;
-            
+            /*
             try {
                 TimeUnit.SECONDS.sleep(2);
             } catch (InterruptedException ex) {
                 Logger.getLogger(ListenerUDP.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            }*/
         }
         
     }

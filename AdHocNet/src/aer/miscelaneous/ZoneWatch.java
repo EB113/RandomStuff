@@ -38,19 +38,17 @@ public class ZoneWatch implements Runnable{
                 this.bool = this.control.getWatchDogFlag().get();
             }
             if(this.bool){
-                if(this.bool){
                     
-                    this.node.gcPeerZone();
-                    this.node.gcReqCache();
-                    this.node.gcHitCache();
+                this.node.gcPeerZone();
+                this.node.gcReqCache();
+                this.node.gcHitCache();
 
-                    try {
-                        TimeUnit.SECONDS.sleep(config.getWatchDogTimer());
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(ZoneWatch.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }else return;
-            } return;
+                try {
+                    TimeUnit.SECONDS.sleep(config.getWatchDogTimer());
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(ZoneWatch.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }else return;
         }
     }
     

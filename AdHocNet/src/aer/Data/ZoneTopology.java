@@ -76,7 +76,7 @@ public class ZoneTopology {
         
         //ADD HELLO OWNER
         if(!(this.hmap.containsKey(nodeId)) && this.hmap.size() < config.getZoneCacheSize()){
-            //System.out.println("ENTREI");
+            
             HashMap<ByteArray, Info> tmp2 = new HashMap<>();
             info = new Info(addr6, 0, 1, seq_num);
             
@@ -91,7 +91,7 @@ public class ZoneTopology {
             info        = new Info(addr6, 0, peerDist, seq_num);
             
             if(this.hmap.containsKey(peerId)) {//Se ja tem o peer na tabela
-                //System.out.println("1WTF!!!!!!!!!!!!!?????????????");
+                
                 HashMap<ByteArray, Info> tmp1 = this.hmap.get(peerId);
                 
                 if(tmp1.containsKey(nodeId)){//se ja tem o hop verificar distancias... OBS:problema relativo a TimeStamp podemos estar a nao inserir algo mais recente
@@ -118,7 +118,7 @@ public class ZoneTopology {
                     }
                 }
             }else if(this.hmap.size() < config.getZoneCacheSize()){//Se nao tem o peer na tabela 
-                //System.out.println("2WTF!!!!!!!!!!!!!?????????????");
+                
                 HashMap<ByteArray, Info> tmp2 = new HashMap<>();
                 info = new Info(addr6, 0, peerDist, seq_num);
 
@@ -133,9 +133,7 @@ public class ZoneTopology {
     }
     
     public void removePeerLink(ByteArray nodeIdDst, ByteArray nodeIdHop) {
-        HashMap<ByteArray, Info> tmp = this.hmap.get(nodeIdDst);
-        tmp.remove(nodeIdHop);
-        this.hmap.put(nodeIdDst, tmp);
+        this.hmap.get(nodeIdDst).remove(nodeIdHop);
     }
     
     public void gcPeer() {
@@ -146,35 +144,14 @@ public class ZoneTopology {
         while (iter1.hasNext()) {
             Map.Entry<ByteArray, HashMap<ByteArray, Info>> entry1 = iter1.next();
             
-            if(entry1.getValue().size() > 0) {
+                for(Info info : entry1.getValue().values()){
+                    //System.out.println(now - info.timestamp > config.getZoneTimeDelta());
+                    //System.out.println(!this.hmap.containsKey(entry1.getKey()));
+                }
                 //SE PASSOU TEMPO OU NAO TENHO O HOP
                 entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getZoneTimeDelta()) || !this.hmap.containsKey(entry2.getKey()));
-                
-            } else iter1.remove();
-            
+                if(entry1.getValue().size()==0) iter1.remove();
         }
-        
-        //ConcurrentModificationException
-        /*
-        for(Map.Entry<ByteArray, HashMap<ByteArray, Info>> pair1 : this.hmap.entrySet()) {
-            if(pair1.getValue().size() > 0) {
-                for(Map.Entry<ByteArray, Info> pair2 : pair1.getValue().entrySet()) {
-
-                    if(now - pair2.getValue().getTimeStamp() > config.getZoneTimeDelta()) removePeerLink(pair1.getKey(),pair2.getKey());
-                }
-            }else removePeer(pair1.getKey());
-        }*/
-        
-        /*
-        this.hmap.forEach((k1, v1) -> {
-            if(v1.size() > 0 ){
-                v1.forEach((k2, v2) -> {
-                    if(now - v2.getTimeStamp() > config.getZoneTimeDelta()) removePeerLink(k1,k2);
-                });
-            }else {
-                removePeer(k1);
-            }
-        });*/
     }
     
     //ROUTES COM RANk

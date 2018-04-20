@@ -26,13 +26,13 @@ public class Config {
     int reqMapSize              = 10; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
     int hitMapSize              = 10;
     
-    long zoneTimeDelta         = 30000;  //Tempo max entre peer hellos  (ms)
+    long zoneTimeDelta         = 5000;  //Tempo max entre peer hellos  (ms)
     long reqLocalTimeDelta     = 60000; //Tempo de vida dos Requests  (ms)
     long reqRemoteTimeDelta    = 30000; //Tempo de vida dos Requests  (ms)
     long hitTimeDelta          = 60000; //Tempo de vida dos Hit  (ms)
-    int watchDogTimer          = 10;  //Tempo de sleep para o WatchDog da tabela ZoneTopology  (s)
+    int watchDogTimer          = 2;  //Tempo de sleep para o WatchDog da tabela ZoneTopology  (s)
     
-    long helloTimer            = 5; //Tempo de intervalos entre hellos enviados
+    long helloTimer            = 1; //Tempo de intervalos entre hellos enviados
     
     int attempNo               = 5; //Number of attempts
     int hopLimit               = 10; //Max Hops
