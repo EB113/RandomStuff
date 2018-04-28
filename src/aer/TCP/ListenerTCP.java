@@ -106,7 +106,6 @@ public class ListenerTCP implements Runnable{
                                 //ROUTE REQUEST SEND
 
                                 Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
-                                if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
                                 
                                 if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
                                     

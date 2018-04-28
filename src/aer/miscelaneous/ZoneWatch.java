@@ -41,7 +41,6 @@ public class ZoneWatch implements Runnable{
                     
                 this.node.gcPeerZone();
                 this.node.gcReqCache();
-                this.node.gcHitCache();
 
                 try {
                     TimeUnit.SECONDS.sleep(config.getWatchDogTimer());

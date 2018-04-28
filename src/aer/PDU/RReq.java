@@ -43,6 +43,7 @@ public class RReq {
         int counter             = 1, limit = 1, it = 0; //Auxiliary variables
         int hopMax              = 0, hopCount = 0, totalSize = 0, keySize = 0; //Obtained Variables
         byte secure             = 0x00;
+        byte[] mode             = new byte[3];
         byte[] tmp              = new byte[4];
         byte[] req_num          = new byte[4];
         byte[] nodeIdSrc        = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
@@ -51,8 +52,15 @@ public class RReq {
         
         ByteBuffer wrapped = ByteBuffer.allocate(4);
         
+        //GET Mode BYTE[3]
+        mode[0]  =   raw[1];
+        mode[1]  =   raw[2];
+        mode[2]  =   raw[3];
+        counter+=3;
+        limit+=3;
+        
         //GET SECURITY BYTE
-        secure  =   raw[1];
+        secure  =   raw[4];
         counter++;
         limit++;
         
@@ -119,29 +127,16 @@ public class RReq {
             //ADICIONAR HIT CACHE
             //Adicionar Rota na Hit Cache
             byte[] nodeHopId = id.getNodeId(peerAddr);
-            if(nodeHopId != null)   id.addHitCache(peerAddr, nodeHopId, nodeIdSrc, hopCount);
             
             //CRIAR UM ROUTE REPLY
             byte[] reply = RRep.dumpLocal(nodeIdSrc, hopCount, id, secure, req_num);
             control.pushQueueUDP(new Tuple(reply, peerAddr));
         } else if(Crypto.cmpByteArray(id.getId(), nodeIdSrc) || id.existsReq(nodeIdSrc, nodeIdDst, req_num)){
             
-            //VALE A PENA ADICIONAR?
-            //ADICIONAR HIT CACHE
-            //Adicionar Rota na Hit Cache
-            byte[] nodeHopId = id.getNodeId(peerAddr);
-            if(nodeHopId != null)   id.addHitCache(peerAddr, nodeHopId, nodeIdSrc, hopCount);
-            
             return;
         } else {
             
-            //ADICIONAR HIT CACHE
-            //Adicionar Rota na Hit Cache
-            byte[] nodeHopId = id.getNodeId(peerAddr);
-            if(nodeHopId != null)   id.addHitCache(peerAddr, nodeHopId, nodeIdSrc, hopCount);
-            
             Tuple peer = id.getZonePeer(nodeIdDst); //Check Zone
-            if(peer == null) peer = id.getHitPeer(nodeIdDst); //Check Hit
             
             if(peer != null) { //Se esta na ZONE TOPOLOGY ou Hit Cache
                 usedPeers.push((InetAddress)peer.y);
@@ -156,12 +151,7 @@ public class RReq {
                     byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
                     control.pushQueueUDP(new Tuple(reply, (InetAddress)peer.y));
                     
-                }/* else { //SE HOP COUNT MAXm
-                    System.out.println("2");
-                    //RError mas tem caminho
-                    byte[] reply = RErr.dumpLocal((byte)0x01, hopCount, (int)peer.x, id, nodeIdDst, nodeIdSrc, req_num);
-                    control.pushQueueUDP(new Tuple(reply, (InetAddress)peer.y));
-                }*/
+                }
             }else { //SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
                 if(hopCount+2<hopMax) {
                     System.out.println("3");
@@ -177,17 +167,9 @@ public class RReq {
                         for(InetAddress val : peerList) {
                             control.pushQueueUDP(new Tuple(reply, val));
                         }
-                    }/*else {
-                        //ROUTE ERROR NO ROUTE
-                        byte[] reply = RErr.dumpLocal((byte)0x02, hopCount, 0, id, nodeIdDst, nodeIdSrc, req_num);
-                        control.pushQueueUDP(new Tuple(reply, peerAddr));
-                    }*/
+                    }
                     
-                }/*else {
-                    //ROUTE ERROR HOP LIMIT
-                    byte[] reply = RErr.dumpLocal((byte)0x00, hopCount, 0, id, nodeIdDst, nodeIdSrc, req_num);
-                    control.pushQueueUDP(new Tuple(reply, peerAddr));
-                }*/
+                }
             }
         
         }  
@@ -201,7 +183,8 @@ public class RReq {
         int counter=0, limit = 0, it = 0;
         byte[] tmp = null;
         
-        byte secure = node.config.getSecurity();
+        byte secure     = node.config.getSecurity();
+        byte[] mode     = node.getMode();
         int len = 0;
         
         node.incReqNum();
@@ -220,10 +203,18 @@ public class RReq {
         raw[counter++] = 0x01;
         limit++;
         //System.out.print("|" + counter + "," + limit + "|");
+        
+        //PDU Mode
+        raw[counter++] = mode[0];
+        raw[counter++] = mode[1];
+        raw[counter++] = mode[2];
+        limit+=3;
+        
         //PDU SECURITY
         raw[counter++] = secure;
         limit++;
         //System.out.print("|" + limit + "|");
+        
         //PDU TOTAL SIZE
         ByteBuffer buffer = ByteBuffer.allocate(4);
         buffer.putInt(len);
@@ -234,6 +225,7 @@ public class RReq {
         }
         it = 0;
         //System.out.print("|" + counter + "," + limit + "|");
+        
         //NODEIDSRC DATA
         limit+=id.length;
         for(; counter<limit; counter++) {
@@ -241,6 +233,7 @@ public class RReq {
         }
         it = 0;
         //System.out.print("|" + counter + "," + limit + "|");
+        
         //NODEIDDST DATA
         limit+=nodeDst.length;
         for(; counter<limit; counter++) {
@@ -248,6 +241,7 @@ public class RReq {
         }
         it = 0;
         //System.out.print("|" + counter + "," + limit + "|");
+        
         //SE SECURITY ACTIVE
         if(secure == 0x01) {
             //PUBKEY SIZE
@@ -268,6 +262,7 @@ public class RReq {
             it = 0;
         }
         //System.out.print("|" + counter + "," + limit + "|");
+        
         //HopCount
         buffer.clear();
         buffer.putInt(0);
@@ -278,6 +273,7 @@ public class RReq {
         }
         it = 0;
         //System.out.print("|" + counter + "," + limit + "|");
+        
         //HopLimit
         buffer.clear();
         buffer.putInt(hopLimit);
@@ -288,6 +284,7 @@ public class RReq {
         }
         it = 0;
         //System.out.print("|" + counter + "," + limit + "|");
+        
         //REQUEST SEQUENCE NUM
         limit+=req_num.length;
         for(; counter<limit; counter++) {

@@ -51,7 +51,6 @@ public class Node {
     //Routing
     private ZoneTopology topo;
     private RemoteRequestCache rrcache;
-    private HitCache     hcache;   
     private LocalRequestCache lrcache;
     
     
@@ -67,7 +66,6 @@ public class Node {
         this.topo       = new ZoneTopology(config);
         this.rrcache    = new RemoteRequestCache(config);
         this.lrcache    = new LocalRequestCache(config);
-        this.hcache     = new HitCache(config);
         
         System.out.println("NodeId: " + Crypto.toHex(this.id));
         System.out.println("ZonePeerNo: " + this.topo.hmap.size());
@@ -180,16 +178,6 @@ public class Node {
         return;
     }
     
-    //-----------HITCACHE CLASS-----------
-    //GarbageCollect
-    public void gcHitCache() {
-        if(this.hcache != null)
-            synchronized(this.hcache){
-                this.hcache.gcHit();
-            }
-        return;
-    }
-    
     //-------------REQUESTCACHE CLASS----------
     //GarbageCollect
     public void gcReqCache() {
@@ -269,13 +257,6 @@ public class Node {
         return tuple;
     }
 
-    public void addHitCache(InetAddress nodeHopAddr, byte[] nodeHopId, byte[] nodeIdDst , int hop_count) {
-        //ADD HIT OF addHitREQUEST SOURCE
-        if(this.hcache != null)
-            synchronized(this.hcache){
-                this.hcache.addHit(nodeHopAddr, nodeHopId, nodeIdDst, hop_count);
-            }
-    }
     
     public void addReqCache(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count, int hop_max, byte[] req_num, byte[] peerKey) {
         
@@ -286,8 +267,6 @@ public class Node {
                 }
         }else {
         
-            //ADD HIT OF REQUEST SOURCE
-            addHitCache(nodeHopAddr, nodeIdSrc, nodeIdDst, hop_count);
             if(this.rrcache != null)
                 synchronized(this.rrcache){
                     //ADD REQUEST
@@ -323,17 +302,6 @@ public class Node {
         }
         
         return null;
-    }
-
-    public Tuple getHitPeer(byte[] nodeIdDst) {
-        Tuple out = null;
-        
-        if(this.hcache != null)
-            synchronized(this.hcache){
-                out = this.hcache.getHit(nodeIdDst);
-            }
-                
-        return out;
     }
     
     
@@ -454,16 +422,11 @@ public class Node {
     }
 
     //REMOVER ROUTE NA HITCACHE OU ZONETOPOLOGY
-    public void rmHit(byte[] nodeIdSrc, byte[] nodeIdDst, InetAddress hopAddr) {
+    public void rmRoute(byte[] nodeIdSrc, byte[] nodeIdDst, InetAddress hopAddr) {
         
         if(this.topo != null)
             synchronized(this.topo){
                 this.topo.rmRoute(nodeIdSrc, nodeIdDst, hopAddr);
-            }
-        
-        if(this.hcache != null)
-            synchronized(this.hcache){
-                this.hcache.rmRoute(nodeIdSrc, nodeIdDst, hopAddr);
             }
     }
 
@@ -545,6 +508,17 @@ public class Node {
             synchronized(this.topo){
                 out = this.topo.getPeerSeqNum(nodeId);
             }
+        return out;
+    }
+
+    public byte[] getMode() {
+        
+        byte[] out = new byte[3];
+        
+        out[0] = 0x00;
+        out[1] = 0x00;
+        out[2] = 0x00;
+        
         return out;
     }
     

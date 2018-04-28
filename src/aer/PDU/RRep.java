@@ -232,17 +232,12 @@ public class RRep {
                 
                 //Adicionar Rota na Hit Cache
                 byte[] nodeHopId = id.getNodeId(nodeHopAddr);
-                if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdSrc, hopCount);
                 
                 //Redirecionar o Reply para o TCP, CHAVE PUBLICA DO PEER
                 control.pushQueueTCP(null, new ByteArray(req_num), nodeHopAddr, peerPubKey);
                 
             }else {
-
-                //Adicionar Rota na Hit Cache
-                byte[] nodeHopId = id.getNodeId(nodeHopAddr);
-                if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdSrc, hopCount);
-
+                
                 // Retirar Request da Cache
                 InetAddress nextHopAddr = id.rmReqCache(nodeIdSrc, nodeIdDst, req_num);
 
@@ -254,13 +249,6 @@ public class RRep {
                 }
             }
         }else {
-            
-            //VALE A PENA ADICIONAR?
-            
-            //Adicionar Rota na Hit Cache
-            byte[] nodeHopId = id.getNodeId(nodeHopAddr);
-            if(nodeHopId != null)   id.addHitCache(nodeHopAddr, nodeHopId, nodeIdSrc, hopCount);
-            
             return;
         }
     } //DEVO ADICIONAR A HIT CACHE?

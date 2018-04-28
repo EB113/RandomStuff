@@ -89,10 +89,6 @@ public class Data {
         
         if(Crypto.cmpByteArray(id.getId(), nodeIdDst)){
             
-            //Adicionar Rota na Hit Cache
-            byte[] nodeHopId = id.getNodeId(origin);
-            if(nodeHopId != null)   id.addHitCache(origin, nodeHopId, nodeIdSrc, hopCount);
-            
             //CALCULATE DATA SIZE
             dataSize = totalSize - (1 + 1 + 4 + 4 + 4 + 32 + 32 + 4 + 4 + 4); //type,sec,totalsize, offset, fragsize, src,dst,hopcount,hopmax,reqnum
             byte[] data = new byte[dataSize];
@@ -132,20 +128,8 @@ public class Data {
             
             hopCount++;
             
-            //Adicionar Rota na Hit Cache
-            byte[] nodeHopId = id.getNodeId(origin);
-            if(nodeHopId != null)   id.addHitCache(origin, nodeHopId, nodeIdSrc, hopCount);
-
-            Tuple tuple = id.getHitPeer(nodeIdDst);
             //INCREMENTAR HOP E REDIRECIONAR
-            if(tuple != null) {
-                
-                byte[] reply = Data.dumpRemote(raw, hopCount);
-                control.pushQueueUDP(new Tuple(reply, (InetAddress)tuple.y));
-            }else{
             
-                System.out.println("MERDA3");
-            }
         }
     }
 
