@@ -146,7 +146,7 @@ public class Hello {
         it = 0;
         
         
-        if(!(Crypto.cmpByteArray(nodeId, id.getId()))){
+        if(!(Crypto.cmpByteArray(nodeId, id.getId())) && !Crypto.cmpByteArray(id.getPeerSeqNum(nodeId),seq_num)){
             
             
             //GET PEERS DATA
@@ -192,6 +192,6 @@ public class Hello {
             }
 
             id.addPeerZone(nodeId, origin, seq_num, tuple);
-        }
+        }else System.out.println("JA TENHO OU SOU EU");
     }
 }

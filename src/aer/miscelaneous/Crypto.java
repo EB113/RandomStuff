@@ -56,7 +56,7 @@ public final class Crypto {
     public static Boolean cmpByteArray(byte[] b1, byte[] b2) {
         Boolean bool = false;
         
-        if(b1.length == b2.length){
+        if(b1!=null  && b2!= null && b1.length == b2.length){
             for(int i=0; i< b1.length; i++) {
                 if(b1[i] != b2[i]) return bool;
             }

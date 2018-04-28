@@ -22,6 +22,7 @@ import java.util.LinkedList;
 import java.util.Map;
 
 public class ZoneTopology {
+
     
     //Value Class
     class Info {
@@ -35,7 +36,6 @@ public class ZoneTopology {
             this.hop_addr   = addr;
             this.rank       = rank;
             this.hop_dist   = hop_dist;
-            this.seq_num    = seq_num;
             this.timestamp  = System.currentTimeMillis();
         }
         
@@ -56,23 +56,26 @@ public class ZoneTopology {
         }
         
     }
-    
-    HashMap <ByteArray, HashMap<ByteArray, Info>> hmap;
+    HashMap <ByteArray, Tuple> hmap;
+    //HashMap <ByteArray, HashMap<ByteArray, Info>> hmap;
     Config config;
     
     public ZoneTopology(Config config) {
        this.config    = config;
-       this.hmap      = new HashMap<ByteArray, HashMap<ByteArray, Info>>();
+       this.hmap      = new HashMap<ByteArray, Tuple>();
+       //this.hmap      = new HashMap<ByteArray, HashMap<ByteArray, Info>>();
     }
     
     //RANKRANKRANK??? Muita optimizacao por fazer nas pesquisas e insercoes
-    public void addPeerZone(byte[] myid, byte[] nodeId_old, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
+    public boolean addPeerZone(byte[] myid, byte[] nodeId_old, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
+        boolean out = false;
         long        now         = System.currentTimeMillis();
         ByteArray   peerId      = null;
         int         peerDist    = 0;
         Info        info        = null;
         
         ByteArray   nodeId      = new ByteArray(nodeId_old);
+        Tuple newTuple          = null;
         
         //ADD HELLO OWNER
         if(!(this.hmap.containsKey(nodeId)) && this.hmap.size() < config.getZoneCacheSize()){
@@ -81,7 +84,11 @@ public class ZoneTopology {
             info = new Info(addr6, 0, 1, seq_num);
             
             tmp2.put(nodeId, info);
-            this.hmap.put(nodeId, tmp2);
+            newTuple = new Tuple(new ByteArray(seq_num),tmp2);
+            this.hmap.put(nodeId, newTuple);
+            
+            //return value for sequence change
+            out = true;
         }
         
         //ADD PEERS
@@ -90,18 +97,22 @@ public class ZoneTopology {
             peerDist    = ((int)peer.x);
             info        = new Info(addr6, 0, peerDist, seq_num);
             
-            if(this.hmap.containsKey(peerId)) {//Se ja tem o peer na tabela
+            if(this.hmap.containsKey(peerId)) {//Se ja tem o peer na tabela, tem sempre o peer por causa do if em cima, corrigir isto
                 
-                HashMap<ByteArray, Info> tmp1 = this.hmap.get(peerId);
-                
+                Tuple currTuple = this.hmap.get(peerId);
+                 // refresh seq num
+                currTuple.x = new ByteArray(seq_num);
+
+                HashMap<ByteArray, Info> tmp1 = (HashMap<ByteArray, Info>)currTuple.y;
+
                 if(tmp1.containsKey(nodeId)){//se ja tem o hop verificar distancias... OBS:problema relativo a TimeStamp podemos estar a nao inserir algo mais recente
                     if(tmp1.get(nodeId).hop_dist >= peerDist) {
                         tmp1.put(nodeId, info);
-                        this.hmap.put(peerId, tmp1);
+                        this.hmap.put(peerId, currTuple);
                     }
                 }else if(tmp1.size() < config.getZoneMapSize()){//se nao tem o hop e caso exista espaco adicionar
                     tmp1.put(nodeId, info);
-                    this.hmap.put(peerId, tmp1);
+                    this.hmap.put(peerId, currTuple);
                 }else {//se nao tem o hop e nao ha espaco retirar hop com dist mais longa
                     ByteArray   curNodeId       = null;
                     int         maxDist         = 0;
@@ -114,7 +125,7 @@ public class ZoneTopology {
                     if(curNodeId != null && maxDist >= peerDist) {
                         tmp1.remove(curNodeId);
                         tmp1.put(nodeId, info);
-                        this.hmap.put(peerId, tmp1);
+                        this.hmap.put(peerId, currTuple);
                     }
                 }
             }else if(this.hmap.size() < config.getZoneCacheSize()){//Se nao tem o peer na tabela 
@@ -123,9 +134,12 @@ public class ZoneTopology {
                 info = new Info(addr6, 0, peerDist, seq_num);
 
                 tmp2.put(nodeId, info);
-                this.hmap.put(peerId, tmp2);
+                newTuple = new Tuple(new ByteArray(seq_num),tmp2);
+                this.hmap.put(peerId, newTuple);
             }
         }
+        
+        return out;
     }
     
     public void removePeer(ByteArray nodeId) {
@@ -133,25 +147,33 @@ public class ZoneTopology {
     }
     
     public void removePeerLink(ByteArray nodeIdDst, ByteArray nodeIdHop) {
-        this.hmap.get(nodeIdDst).remove(nodeIdHop);
+        ((HashMap<ByteArray, Info>)this.hmap.get(nodeIdDst).y).remove(nodeIdHop);
     }
     
-    public void gcPeer() {
+    public boolean gcPeer() {
+        boolean out = false;
         long now  = System.currentTimeMillis();
         
-        Iterator<Map.Entry<ByteArray, HashMap<ByteArray, Info>>> iter1 = this.hmap.entrySet().iterator();
+        //Iterator<Map.Entry<ByteArray, HashMap<ByteArray, Info>>> iter1 = this.hmap.entrySet().iterator();
+        Iterator<Map.Entry<ByteArray, Tuple>> iter1 = this.hmap.entrySet().iterator();
         
         while (iter1.hasNext()) {
-            Map.Entry<ByteArray, HashMap<ByteArray, Info>> entry1 = iter1.next();
+            Map.Entry<ByteArray, Tuple> entry1 = iter1.next();
             
-                for(Info info : entry1.getValue().values()){
+                for(Info info : ((HashMap<ByteArray, Info>)(entry1.getValue().y)).values()){
                     //System.out.println(now - info.timestamp > config.getZoneTimeDelta());
                     //System.out.println(!this.hmap.containsKey(entry1.getKey()));
                 }
                 //SE PASSOU TEMPO OU NAO TENHO O HOP
-                entry1.getValue().entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getZoneTimeDelta()) || !this.hmap.containsKey(entry2.getKey()));
-                if(entry1.getValue().size()==0) iter1.remove();
+                ((HashMap<ByteArray, Info>)(entry1.getValue().y)).entrySet().removeIf(entry2 -> (now - entry2.getValue().getTimeStamp() > config.getZoneTimeDelta()) || !this.hmap.containsKey(entry2.getKey()));
+                if(((HashMap<ByteArray, Info>)(entry1.getValue().y)).size()==0) {
+                    
+                    out = true;
+                    iter1.remove();
+                }
         }
+        
+        return out;
     }
     
     //ROUTES COM RANk
@@ -160,7 +182,7 @@ public class ZoneTopology {
         LinkedList<Tuple> peers = new LinkedList<>();
         
         this.hmap.forEach((k1, v1) -> {
-            v1.forEach((k2, v2) -> {
+            ((HashMap<ByteArray, Info>)v1.y).forEach((k2, v2) -> {
                 if(v2.hop_dist <= maxHops) {
                     Tuple tuple = new Tuple(v2.hop_addr, v2.hop_dist);
                     peers.push(tuple);
@@ -177,7 +199,7 @@ public class ZoneTopology {
         LinkedList<Tuple> peers = new LinkedList<>();
         
         this.hmap.forEach((k1, v1) -> {
-            v1.forEach((k2, v2) -> {
+            ((HashMap<ByteArray, Info>)v1.y).forEach((k2, v2) -> {
                 if(v2.hop_dist <= maxHops) {
                     Tuple tuple = new Tuple(v2.hop_addr, v2.hop_dist);
                     peers.push(tuple);
@@ -194,7 +216,7 @@ public class ZoneTopology {
         LinkedList<Tuple> peers = new LinkedList<>();
         
         this.hmap.forEach((k1, v1) -> {
-            v1.forEach((k2, v2) -> {
+            ((HashMap<ByteArray, Info>)v1.y).forEach((k2, v2) -> {
                 if(v2.hop_dist <= maxHops) {
                     Tuple tuple = new Tuple(k1.getData(), v2.hop_dist);
                     peers.push(tuple);
@@ -211,9 +233,10 @@ public class ZoneTopology {
         if(this.hmap.containsKey(nodeId)){
             InetAddress peer = null;
             int minDist = config.getZoneSize(); //MAX DIST is BORDER
-            HashMap<ByteArray, Info> routes = this.hmap.get(nodeId);
+            //HashMap<ByteArray, Info> routes = this.hmap.get(nodeId);
+            Tuple routes = this.hmap.get(nodeId);
             
-            for(Map.Entry<ByteArray, Info> pair : routes.entrySet()) {
+            for(Map.Entry<ByteArray, Info> pair : ((HashMap<ByteArray, Info>)(routes.y)).entrySet()) {
                 if(pair.getValue().getHop_dist() <= minDist) {
                     peer    = pair.getValue().getHop_addr();
                     minDist = pair.getValue().getHop_dist();
@@ -228,9 +251,10 @@ public class ZoneTopology {
     public byte[] getNodeId(InetAddress nodeHopAddr) {
         byte[] peerId = null;
         
-        for(Map.Entry<ByteArray, HashMap<ByteArray, Info>> pair1 : this.hmap.entrySet()) {
+        //for(Map.Entry<ByteArray, HashMap<ByteArray, Info>> pair1 : this.hmap.entrySet()) {
+        for(Map.Entry<ByteArray, Tuple> pair1 : this.hmap.entrySet()) {
             
-            for(Map.Entry<ByteArray, Info> pair2 : pair1.getValue().entrySet()) {
+            for(Map.Entry<ByteArray, Info> pair2 : ((HashMap<ByteArray, Info>)(pair1.getValue().y)).entrySet()) {
                 
                 if(pair2.getValue().hop_addr.equals(nodeHopAddr)) {
                     return pair2.getKey().getData();
@@ -308,11 +332,12 @@ public class ZoneTopology {
         ByteArray nodeIdDst = new ByteArray(nodeIdDst_old);
         
         if(this.hmap.containsKey(nodeIdDst)){
-            HashMap<ByteArray, Info> tmpArray = this.hmap.get(nodeIdDst);
+            //HashMap<ByteArray, Info> tmpArray = this.hmap.get(nodeIdDst);
+            HashMap<ByteArray, Info> tmpArray = (HashMap<ByteArray, Info>)(this.hmap.get(nodeIdDst).y);
+                        
             if(tmpArray.containsKey(nodeIdSrc) && tmpArray.get(nodeIdSrc).hop_addr.equals(hopAddr)) {
                 tmpArray.remove(nodeIdSrc);
             }
-            this.hmap.put(nodeIdDst, tmpArray);
         }
     }
     
@@ -327,4 +352,11 @@ public class ZoneTopology {
         return out;
     }
 
+    
+    byte[] getPeerSeqNum(byte[] nodeId) {
+        byte[] out = null;
+        
+        
+        return out;
+    }
 }

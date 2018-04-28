@@ -157,7 +157,7 @@ public class Node {
         //CHECK SEQUNCE NUMBER
         if(this.topo != null)
             synchronized(this.topo){
-                this.topo.addPeerZone(this.id, nodeId, addr6, seq_num, peers);
+                if(this.topo.addPeerZone(this.id, nodeId, addr6, seq_num, peers)) this.seq_num++;
             }
         return;
     }
@@ -175,7 +175,7 @@ public class Node {
     public void gcPeerZone() {
         if(this.topo != null)
             synchronized(this.topo){
-                this.topo.gcPeer();
+                if(this.topo.gcPeer())  this.seq_num++;
             }
         return;
     }
@@ -536,6 +536,16 @@ public class Node {
                 return this.rrcache.getReqValues(nodeIdSrc, nodeIdDst, req_num);
             }
         else return null;
+    }
+
+    public byte[] getPeerSeqNum(byte[] nodeId) {
+        byte[] out = null;
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                out = this.topo.getPeerSeqNum(nodeId);
+            }
+        return out;
     }
     
     
