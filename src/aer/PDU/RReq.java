@@ -156,12 +156,12 @@ public class RReq {
                     byte[] reply = RReq.dumpRemote(raw, hopCount, keySize);
                     control.pushQueueUDP(new Tuple(reply, (InetAddress)peer.y));
                     
-                } else { //SE HOP COUNT MAXm
+                }/* else { //SE HOP COUNT MAXm
                     System.out.println("2");
                     //RError mas tem caminho
                     byte[] reply = RErr.dumpLocal((byte)0x01, hopCount, (int)peer.x, id, nodeIdDst, nodeIdSrc, req_num);
                     control.pushQueueUDP(new Tuple(reply, (InetAddress)peer.y));
-                }
+                }*/
             }else { //SE NAO ESTA NA ZONE TOPOLOGY ou Hit Cache
                 if(hopCount+2<hopMax) {
                     System.out.println("3");
@@ -177,17 +177,17 @@ public class RReq {
                         for(InetAddress val : peerList) {
                             control.pushQueueUDP(new Tuple(reply, val));
                         }
-                    }else {
+                    }/*else {
                         //ROUTE ERROR NO ROUTE
                         byte[] reply = RErr.dumpLocal((byte)0x02, hopCount, 0, id, nodeIdDst, nodeIdSrc, req_num);
                         control.pushQueueUDP(new Tuple(reply, peerAddr));
-                    }
+                    }*/
                     
-                }else {
+                }/*else {
                     //ROUTE ERROR HOP LIMIT
                     byte[] reply = RErr.dumpLocal((byte)0x00, hopCount, 0, id, nodeIdDst, nodeIdSrc, req_num);
                     control.pushQueueUDP(new Tuple(reply, peerAddr));
-                }
+                }*/
             }
         
         }  

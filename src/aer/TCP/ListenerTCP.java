@@ -7,7 +7,6 @@ package aer.TCP;
 
 import aer.Data.Node;
 import aer.PDU.Data;
-import aer.PDU.RErr;
 import aer.PDU.RRep;
 import aer.PDU.RReq;
 import aer.miscelaneous.ByteArray;
