@@ -10,10 +10,6 @@ import aer.miscelaneous.Controller;
 import aer.miscelaneous.Crypto;
 import java.net.InetAddress;
 import aer.PDU.Hello;
-import aer.PDU.Data;
-//import aer.PDU.RErr;
-import aer.PDU.RRep;
-import aer.PDU.RReq;
 /**
  *
  * @author pedro
@@ -45,20 +41,12 @@ public class Interpreter implements Runnable{
                     //this.id.print();
                 break;
             case 0x01:
-                    System.out.println("--->Request");
-                    RReq.load(this.pdu, this.id, this.origin, this.control);
+                    //System.out.println("--->Request");
+                    //RReq.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x02:
-                    System.out.println("--->Reply");              
-                    RRep.load(this.pdu, this.id, this.origin, this.control);
-                break;
-            //case 0x03:
-                   // System.out.println("--->Error");
-                   // RErr.load(this.pdu, this.id, this.origin, this.control);
-                //break;
-            case 0x04:
-                    System.out.println("--->Data");
-                    Data.load(this.pdu, this.id, this.origin, this.control);
+                    //System.out.println("--->Reply");              
+                    //RRep.load(this.pdu, this.id, this.origin, this.control);
                 break;
             default:
                 System.out.println("WRONG PDU TYPE!");

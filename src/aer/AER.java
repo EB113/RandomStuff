@@ -29,7 +29,7 @@ public class AER {
          
          //Node Setup
          Config     config  = new Config();
-         Node       id      = new Node(config);
+         Node       id      = new Node(config, argv[0]);
          Controller control = new Controller(config.getQueueSize(), id);
          
          

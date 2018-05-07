@@ -40,10 +40,10 @@ public class ZoneWatch implements Runnable{
             if(this.bool){
                     
                 this.node.gcPeerZone();
-                this.node.gcReqCache();
+                this.node.gcPeerCache();
 
                 try {
-                    TimeUnit.SECONDS.sleep(config.getWatchDogTimer());
+                    TimeUnit.MILLISECONDS.sleep(config.getWatchDogTimer());
                 } catch (InterruptedException ex) {
                     Logger.getLogger(ZoneWatch.class.getName()).log(Level.SEVERE, null, ex);
                 }

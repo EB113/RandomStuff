@@ -5,6 +5,8 @@
  */
 package aer.miscelaneous;
 
+import static java.lang.Math.exp;
+
 /**
  *
  * @author pedro
@@ -13,30 +15,40 @@ public class Config {
 
     
     //Configs
-    int difficulty             = 1; //Num de zeros msb's no nodeId
+    
+        //DATA
+        int queueSize               = 30;
+        //int zoneSize               = 2; //Tamanho da Zona
+        //int zoneSizeHello          = 1; //Dist maxima dos nodos para ser enviado no Hello
+        int zoneCacheSize           = 30; //Tamanho de nodos destinos na tabela zonetopology
+        int dataCacheSize           = 30; //Tamanhp da Cache dos Requests
+        int peerCacheSize           = 10; //Tamanho da Cache dos HIts
 
-    int queueSize              = 30;
-    int zoneSize               = 2; //Tamanho da Zona
-    int zoneSizeHello          = 1; //Dist maxima dos nodos para ser enviado no Hello
-    int zoneCacheSize          = 30; //Tamanho de nodos destinos na tabela zonetopology
-    int requestCacheSize       = 30; //Tamanhp da Cache dos Requests
-    int hitCacheSize           = 30; //Tamanho da Cache dos HIts
+        int zoneMapSize             = 10; //size per map
+        int reqMapSize              = 10; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
+        int hitMapSize              = 10;
 
-    int zoneMapSize             = 10; //size per map
-    int reqMapSize              = 10; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
-    int hitMapSize              = 10;
+        long zoneTimeDelta         = 5000;  //Tempo max entre peer hellos  (ms)
+        /*
+        long reqTimeDelta          = 60000; //Tempo de vida dos Requests  (ms)
+        long repTimeDelta          = 30000; //Tempo de vida dos Requests  (ms)
+        long hitTimeDelta          = 60000; //Tempo de vida dos Hit  (ms)
+    */
+        long watchDogTimer          = 1;  //Tempo de sleep para o WatchDog da tabela ZoneTopology  (s)
+
+        long helloTimer            = 1; //Tempo de intervalos entre hellos enviados
+        
+        long TTL                   = 5000; //TIME TO LIVE DATAREQPACK
+
+        int attempNo               = 5; //Number of attempts
+        int hopLimit               = 10; //Max Hops
+        byte security              = 0x00; //SECURITY 0X00 OFF 0X01 ON
     
-    long zoneTimeDelta         = 5000;  //Tempo max entre peer hellos  (ms)
-    long reqLocalTimeDelta     = 60000; //Tempo de vida dos Requests  (ms)
-    long reqRemoteTimeDelta    = 30000; //Tempo de vida dos Requests  (ms)
-    long hitTimeDelta          = 60000; //Tempo de vida dos Hit  (ms)
-    int watchDogTimer          = 2;  //Tempo de sleep para o WatchDog da tabela ZoneTopology  (s)
-    
-    long helloTimer            = 1; //Tempo de intervalos entre hellos enviados
-    
-    int attempNo               = 5; //Number of attempts
-    int hopLimit               = 10; //Max Hops
-    byte security              = 0x00; //SECURITY 0X00 OFF 0X01 ON
+    //Session
+    String coreSession             = "34189";
+    int difficulty                 = 1; //Num de zeros msb's no nodeId
+    long peerCacheTimeDelta        = 60000; //MAX time for peerCache entrys 1min
+    byte mode                      = 0x01; //Changeable vs not changeable
     
     public Config(){
     
@@ -45,7 +57,7 @@ public class Config {
     //--------------------------------------
     //TEM QUE SE FAZER SYNCHRONIZE A ISTO TUDO
     //--------------------------------------
-    
+    /*
     public int getZoneSizeHello() {
         return zoneSizeHello;
     }
@@ -53,7 +65,7 @@ public class Config {
     public void setZoneSizeHello(int zoneSizeHello) {
         this.zoneSizeHello = zoneSizeHello;
     }
-
+*/
     public int getAttempNo() {
         return attempNo;
     }
@@ -102,7 +114,7 @@ public class Config {
     public void setDifficulty(int difficulty) {
         this.difficulty = difficulty;
     }
-
+/*
     public int getZoneSize() {
         return zoneSize;
     }
@@ -126,7 +138,7 @@ public class Config {
     public void setHitCacheSize(int hitCacheSize) {
         this.hitCacheSize = hitCacheSize;
     }
-
+*/
     public long getZoneTimeDelta() {
         return zoneTimeDelta;
     }
@@ -134,7 +146,7 @@ public class Config {
     public void setZoneTimeDelta(long zoneTimeDelta) {
         this.zoneTimeDelta = zoneTimeDelta;
     }
-
+/*
     public long getLocalReqTimeDelta() {
         return reqLocalTimeDelta;
     }
@@ -158,8 +170,8 @@ public class Config {
     public void setHitTimeDelta(long hitTimeDelta) {
         this.hitTimeDelta = hitTimeDelta;
     }
-
-    public int getWatchDogTimer() {
+*/
+    public long getWatchDogTimer() {
         return watchDogTimer;
     }
 
@@ -198,6 +210,48 @@ public class Config {
     public void setQueueSize(int queueSize) {
         this.queueSize = queueSize;
     }
+
+    public void refreshRate(int peerTraffic) {
+        
+        Double tmp = exp(peerTraffic/4) - 0.5;
+        
+        long decimal = Long.parseLong(tmp.toString().split("\\.")[0]);
+        long fractional = Long.parseLong(tmp.toString().split("\\.")[1]);
+        
+        int length = (int)(Math.log10(fractional)+1);
+        this.helloTimer  = (decimal*1000 + (long)Math.floor((fractional/(Math.pow(10,length-3)))));
+        
+        this.watchDogTimer = this.helloTimer+500;
+    }
+
+    public String getCoreSession() {
+        return this.coreSession;
+    }
+
+    public int getPeerCacheSize() {
+        return this.peerCacheSize;
+    }
+
+    public long getPeerCacheTimeDelta() {
+        return this.peerCacheTimeDelta;
+    }
     
+    public void print() {
+    
+        System.out.println("HELLO: " + this.helloTimer);
+        System.out.println("WATCH: " + this.watchDogTimer);
+    }
+
+    public long getTTL() {
+        return this.TTL;
+    }
+
+    public byte getMode() {
+        return this.mode;
+    }
+
+    public int getDataCacheSize() {
+        return dataCacheSize;
+    }
     
 }

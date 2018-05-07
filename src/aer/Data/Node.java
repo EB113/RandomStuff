@@ -7,7 +7,6 @@ package aer.Data;
 
 //Class que Contem Informacao relativa ao Nodo
 
-import aer.PDU.RReq;
 import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
@@ -16,11 +15,16 @@ import static aer.miscelaneous.Crypto.encryptString;
 import static aer.miscelaneous.Crypto.generateSharedSecret;
 import static aer.miscelaneous.Crypto.toHex;
 import aer.miscelaneous.Tuple;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 
 import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -29,9 +33,12 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.crypto.SecretKey;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -39,7 +46,8 @@ import org.bouncycastle.jce.spec.ECParameterSpec;
 
 public class Node {
     //Configs
-    public Config  config;
+    public Config   config;
+    public String   coreID;
     
     //Identity
     private byte[]      id;
@@ -49,26 +57,46 @@ public class Node {
     private Integer     req_num;
     
     //Routing
-    private ZoneTopology topo;
-    private RemoteRequestCache rrcache;
-    private LocalRequestCache lrcache;
+    private ZoneTopology        topo;
+    private DataRequestCache    drqcache;
+    private DataReplyCache      drpcache;
+    private PeerCache           pcache;
     
+    //private RemoteRequestCache rrcache;
+    //private LocalRequestCache lrcache;
     
-    public Node(Config config) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
+    //Position
+    private Tuple position;
+    private Tuple direction;
+    private Double speed;
+    private long timestamp;
+    
+    public Node(Config config, String coreID) throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
         
         //Configs
         this.config = config;
+        this.coreID = coreID;
         //Node Identity
         this.seq_num        = -1;
         this.req_num        = 0;
         genKeyPair();
+        
         //Routing Data
-        this.topo       = new ZoneTopology(config);
-        this.rrcache    = new RemoteRequestCache(config);
-        this.lrcache    = new LocalRequestCache(config);
+        this.pcache         = new PeerCache(config);
+        this.topo           = new ZoneTopology(config, this.pcache);
+        this.drqcache       = new DataRequestCache(config);
+        this.drpcache       = new DataReplyCache(config);
+        //this.rrcache    = new RemoteRequestCache(config);
+        //this.lrcache    = new LocalRequestCache(config);
+        
+        //Position
+        this.position   = new Tuple(0.0,0.0);
+        this.direction  = new Tuple(0.0,0.0);
+        this.speed      = 0.0;
+        this.timestamp  = 0;
         
         System.out.println("NodeId: " + Crypto.toHex(this.id));
-        System.out.println("ZonePeerNo: " + this.topo.hmap.size());
+        System.out.println("ZonePeerNo: " + this.topo.gem.size());
     }
     
     
@@ -151,15 +179,18 @@ public class Node {
     }
     
     //-----------ZONETOPOLOGY CLASS--------------
-    public void addPeerZone(byte[] nodeId, InetAddress addr6, byte[] seq_num, ArrayList<Tuple> peers) {
+    public void addPeerZone(byte[] nodeId, InetAddress addr6, Tuple position, Tuple direction, Double speed) {
         //CHECK SEQUNCE NUMBER
-        if(this.topo != null)
-            synchronized(this.topo){
-                if(this.topo.addPeerZone(this.id, nodeId, addr6, seq_num, peers)) this.seq_num++;
+        if(this.topo != null && this.pcache != null)
+            synchronized(this.pcache){
+                synchronized(this.topo){
+                    this.topo.addPeerZone(this.id, nodeId, addr6, position, direction, speed);
+                }
             }
         return;
     }
     
+    /*
     //Vale a pena verificar o IPV6????
     public void rmPeerZone(byte[] nodeId) {
         if(this.topo != null)
@@ -168,19 +199,27 @@ public class Node {
             }
         return;
     }
+    */
     
     //GarbageCollect
     public void gcPeerZone() {
         if(this.topo != null)
             synchronized(this.topo){
-                if(this.topo.gcPeer())  this.seq_num++;
+                this.topo.gcPeer();
+            }
+        return;
+    }
+    public void gcPeerCache() {
+        if(this.pcache != null)
+            synchronized(this.pcache){
+                this.pcache.gcPeer();
             }
         return;
     }
     
     //-------------REQUESTCACHE CLASS----------
     //GarbageCollect
-    public void gcReqCache() {
+   /* public void gcReqCache() {
         if(this.rrcache != null)
             synchronized(this.rrcache){
                 this.rrcache.gcReq();
@@ -190,7 +229,7 @@ public class Node {
                 this.lrcache.gcReq();
             }
         return;
-    }
+    }*/
     //-----------------------------------------
     //-------------------END------------------
     //-----------------------------------------
@@ -201,7 +240,7 @@ public class Node {
     //-----------------------------------------
     
     //---------NODE CLASS-----------
-    public byte[] getSeqNum() {
+    /*public byte[] getSeqNum() {
         ByteBuffer buffer = ByteBuffer.allocate(4);
         
         synchronized(this.seq_num){
@@ -209,7 +248,7 @@ public class Node {
         }
         
         return buffer.array();
-    }   
+    } */  
     
     public void incReqNum() {
         synchronized(this.req_num){
@@ -227,6 +266,109 @@ public class Node {
         return buffer.array();
     }
     
+    //DEBUGDEGBUGDEBUG
+    //DEBUGDEGBUGDEBUG
+    //DEBUGDEGBUGDEBUG
+    
+    public void print() {
+        if(this.topo != null)
+            synchronized(this.topo){
+                System.out.println("ZonePeerNo: " + this.topo.gem.size());
+                this.topo.printPeers();
+            }
+        if(this.pcache != null)
+            synchronized(this.pcache){
+                System.out.println("PeerCacheNo: " + this.pcache.gem.size());
+                this.topo.printPeers();
+            }
+        System.out.println("POS: [" + ((double)this.position.x) + ", " + ((double)this.position.y) + "] " 
+                +  "DIR: [" + ((double)this.direction.x) + ", " + ((double)this.direction.y) + "] "
+                        + "SPEED: " + this.speed);
+        
+        this.config.print();
+    }
+    
+    public int getPeerTraffic() {
+        
+        int out = 0;
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                out = this.topo.getCount();
+            }
+        
+        return out;
+    }
+    
+    public Tuple getPosition() {
+        Tuple out = null;
+        
+        if(this.position != null)
+            synchronized(this.position){
+                out = this.position;
+            }
+        
+        return out;
+    }
+
+    public Tuple getDirection() {
+        Tuple out = null;
+        
+        if(this.direction != null)
+            synchronized(this.direction){
+                out = this.direction;
+            }
+        
+        return out;        
+    }
+
+    public Double getSpeed() {
+        Double out = null;
+        
+        if(this.speed != null)
+            synchronized(this.speed){
+                out = this.speed;
+            }
+        
+        return out;        
+    }
+    
+    
+    public void refreshPosData() throws IOException {
+        
+        String session  = config.getCoreSession();
+        String path     = "/tmp/pycore." + session + "/" + this.coreID + ".xy";
+        
+        BufferedReader reader = new BufferedReader(new FileReader(path));
+        String line = reader.readLine();
+        
+        String[] parts = line.split(" ");
+       
+        Double x = Double.parseDouble(parts[0]);
+        Double y = Double.parseDouble(parts[1]);
+            
+        if(this.direction != null)
+            synchronized(this.direction){
+                this.direction.x = x - (double)this.position.x;
+                this.direction.y = y - (double)this.position.y;
+            }
+        
+        if(this.position != null)
+            synchronized(this.position){
+                this.position.x = x;
+                this.position.y = y;
+            }
+        
+        long timestamp = (System.currentTimeMillis() - this.timestamp)/1000;
+        
+        if(this.speed != null)
+            synchronized(this.speed){
+                this.speed = Math.sqrt(Math.pow((double)this.direction.x,2) + Math.pow((double)this.direction.y,2))/timestamp;
+            }
+    }
+    
+    
+    /*
     //---------ZONETOPOLOGY CLASS-----------
     //Get Peers in Zone max distance = hops
     //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!
@@ -256,8 +398,8 @@ public class Node {
         
         return tuple;
     }
-
-    
+*/
+    /*
     public void addReqCache(LinkedList<InetAddress> usedPeers, InetAddress nodeHopAddr, byte[] nodeIdSrc, byte[] nodeIdDst, int hop_count, int hop_max, byte[] req_num, byte[] peerKey) {
         
         if(Crypto.cmpByteArray(id, nodeIdSrc)) {// TROCAR PARA HOP COUNT == 0 mais rapido
@@ -274,8 +416,8 @@ public class Node {
                 }
         }
         
-    }
-
+    }*/
+/*
     public byte[] getNodeId(InetAddress nodeHopAddr) {
         byte[] out = null;
         
@@ -285,8 +427,8 @@ public class Node {
                 }
         
         return out;
-    }
-
+    }*/
+/*
     public InetAddress rmReqCache(byte[] nodeIdDst, byte[] nodeIdSrc, byte[] req_num) {
     
         if(Crypto.cmpByteArray(id, nodeIdSrc)) {
@@ -303,8 +445,8 @@ public class Node {
         
         return null;
     }
-    
-    
+ */   
+    /*
     public LinkedList<InetAddress> getPeers(InetAddress hopPeer) {
         LinkedList<InetAddress> out = null;
         
@@ -314,7 +456,7 @@ public class Node {
             }
         
         return out;
-    }
+    }*//*
     
     //CHAMADA PARA OBTER PEERS A QUEM MANDAR COM RANK
     //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!   
@@ -328,8 +470,8 @@ public class Node {
         
         return out;
     }
-
-
+*/
+/*
     //CHAMADA PARA OBTER Todos os peers a quem mandar exceptuando 1 hop
     //NOTA: PODEMOS RETORNAR NULL E QUEM CHAMA PODE NAO ESTAR A ESPERA!!!   
     public LinkedList<InetAddress> getReqPeers(InetAddress hopPeer) {
@@ -341,8 +483,8 @@ public class Node {
             }
         
         return out;
-    }
-
+    }*/
+/*
     public byte[] getLocalReqTarget(byte[] req_num) {
         byte[] out = null;
 
@@ -420,7 +562,7 @@ public class Node {
         
         return out;
     }
-
+*//*
     //REMOVER ROUTE NA HITCACHE OU ZONETOPOLOGY
     public void rmRoute(byte[] nodeIdSrc, byte[] nodeIdDst, InetAddress hopAddr) {
         
@@ -428,8 +570,8 @@ public class Node {
             synchronized(this.topo){
                 this.topo.rmRoute(nodeIdSrc, nodeIdDst, hopAddr);
             }
-    }
-
+    }*/
+/*
     public LinkedList<InetAddress> getExcludedNodes(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
         LinkedList<InetAddress> usedPeers = new LinkedList<InetAddress>();
         
@@ -442,20 +584,10 @@ public class Node {
         return usedPeers;
     }
     
+  */  
     
     
-    //DEBUGDEGBUGDEBUG
-    //DEBUGDEGBUGDEBUG
-    //DEBUGDEGBUGDEBUG
-    
-    public void print() {
-        if(this.topo != null)
-            synchronized(this.topo){
-                System.out.println("ZonePeerNo: " + this.topo.hmap.size());
-                this.topo.printPeers();
-            }
-    }
-
+/*
     public Boolean existsReq(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
         
         if(Crypto.cmpByteArray(this.id, nodeIdSrc)) {
@@ -500,7 +632,7 @@ public class Node {
             }
         else return null;
     }
-
+*//*
     public byte[] getPeerSeqNum(byte[] nodeId) {
         byte[] out = null;
         
@@ -509,8 +641,8 @@ public class Node {
                 out = this.topo.getPeerSeqNum(nodeId);
             }
         return out;
-    }
-
+    }*/
+/*
     public byte[] getMode() {
         
         byte[] out = new byte[3];
@@ -521,7 +653,97 @@ public class Node {
         
         return out;
     }
+    */
+
+    public Tuple getPosData() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    public long getTTL() {
+        return this.config.getTTL();
+    }
+
+    public byte[] GenerateSignature(byte[] raw, int limit) {
+        
+        byte[] tmp = new byte[limit];
+        byte[] out = null;
+        for(int i=0; i<limit; i++) tmp[i] = raw[i];
+        
+        try {
+            
+            out = Crypto.GenerateSignature(tmp, this.privk);
+        } catch (SignatureException ex) {
+            Logger.getLogger(Node.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (UnsupportedEncodingException ex) {
+            Logger.getLogger(Node.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvalidKeyException ex) {
+            Logger.getLogger(Node.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchAlgorithmException ex) {
+            Logger.getLogger(Node.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchProviderException ex) {
+            Logger.getLogger(Node.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        return out;
+    }
+
+    public void addDataReq(byte[] id, byte[] nodeDst, byte[] seq_num, byte[] peerKey, long ttl, LinkedList<InetAddress> usedPeers) {
+        
+        if(this.drqcache != null)
+            synchronized(this.drqcache){
+                this.drqcache.addReq(id, nodeDst, seq_num, peerKey, ttl, usedPeers);
+            }
+    }
+
+    public LinkedList<InetAddress> getZonePeer(byte[] nodeIdDst) {
+        
+        ByteArray nodeIdDst_new = new ByteArray(nodeIdDst);
+        LinkedList<InetAddress> out = null;
+        
+        if(this.topo != null)
+            synchronized(this.topo){
+                out = this.topo.getPeer(nodeIdDst_new);
+            }
+        
+        return out;
+    }
+
+    public LinkedList<InetAddress> getPeerCache(byte[] nodeIdDst) {
+        
+        ByteArray nodeIdDst_new      = new ByteArray(nodeIdDst);
+        Tuple     peer               = null;
+        LinkedList<InetAddress> out  = null;
+        
+        //CHECK CACHE
+        if(this.pcache != null)
+            synchronized(this.pcache){
+                peer = this.pcache.getPeer(nodeIdDst_new);
+            }
+        //GET OPTIMAL HOP
+        if(peer != null)
+            if(this.topo != null)
+                synchronized(this.topo){
+                    out = this.topo.getOptimal(peer);
+                }
+        
+        return out;
+    }
+
+    public LinkedList<InetAddress> getOrientUnic(LinkedList<InetAddress> usedPeers) {
+        
+        LinkedList<InetAddress> out  = null;
+        
+        if(this.topo != null)
+                synchronized(this.topo){
+                    out = this.topo.getOrientUnic(usedPeers);
+                }
+        
+        return out;
+    }
+
     
+
+
     
 }
     

@@ -231,7 +231,7 @@ public final class Crypto {
 		ecdsaSign.initSign(privk);
 		ecdsaSign.update(plaintext); //plaintext.getBytes("UTF-8")
 		byte[] signature = ecdsaSign.sign();
-		System.out.println(signature.toString());
+                
 		return signature;
 	}
 	

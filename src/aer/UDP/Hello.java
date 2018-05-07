@@ -52,9 +52,15 @@ public class Hello implements Runnable{
                 }
             }else return;
             
+            synchronized(this.config){
+                this.config.refreshRate(id.getPeerTraffic());        
+            }
+            
+            
             try {
-                TimeUnit.SECONDS.sleep(config.getHelloTimer());
-            } catch (InterruptedException ex) {
+                id.refreshPosData();
+                TimeUnit.MILLISECONDS.sleep(config.getHelloTimer());
+            } catch (InterruptedException | IOException ex) {
                 Logger.getLogger(UDPQueue.class.getName()).log(Level.SEVERE, null, ex);
             }
         } 

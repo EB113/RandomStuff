@@ -22,43 +22,32 @@ public class Hello {
     public static byte[] dump(Node node) {
         
         byte[] id               = node.getId();
-        byte[] seq              = node.getSeqNum();
-        int zoneSizeHello       = node.config.getZoneSizeHello();
-        LinkedList<Tuple> peers = node.getZonePeersIds(zoneSizeHello);
+        //byte[] seq              = node.getSeqNum();
+        //int zoneSizeHello       = node.config.getZoneSizeHello();
         
-        int peerslen = 0, counter=0, limit = 0, it = 0;
+        
+        int posData = 0, counter=0, limit = 0, it = 0;
         byte[] tmp = null;
         
+        posData = 8+8 + 8+8 + 8; //POS + DIR + SPEED
         
         //PDU TOTAL SIZE
-        if(zoneSizeHello == 1)   for(Tuple i: peers) peerslen+=((byte[])(i.x)).length; //SEM HOP DIST
-        else for(Tuple i: peers) peerslen+=(((byte[])(i.x)).length + 4); //COM HOP DIST
-        int len = 1 + 4 + 4 + id.length + 4 + peerslen; //PDUTYPE+PDUTOTALSIZE+ZONESIZE+NODEID+SEQNUM+PEERS
+        int len = 1 + 4 + id.length + posData; //PDUTYPE+PDUTOTALSIZE+NODEID+POSDATA
         byte[] raw = new byte[len];
         
         //PDU TYPE
         raw[counter++] = 0x00;
         limit++;
-        
+        /*
         //PDU TOTAL SIZE
-        ByteBuffer buffer = ByteBuffer.allocate(4);
+        ByteBuffer buffer = ByteBuffer.allocate(8);
         buffer.putInt(len);
         tmp = buffer.array();
         limit+=4;
         for(; counter<limit; counter++) {
             raw[counter] = tmp[it++];
         }
-        it = 0;
-        
-        //ZONE SIZE
-        buffer.clear();
-        buffer.putInt(zoneSizeHello);
-        tmp = buffer.array();
-        limit+=4;
-        for(; counter<limit; counter++) {
-            raw[counter] = tmp[it++];
-        }
-        it = 0;
+        it = 0;*/
         
         //NODEID DATA
         limit+=id.length;
@@ -67,43 +56,61 @@ public class Hello {
         }
         it = 0;
         
-        //SEQUENCE DATA
-        limit+=seq.length;
-        for(; counter<limit; counter++) {
-            raw[counter] = seq[it++];
-        }
-        it = 0;
+        //POSITION DATA
+        Tuple pos       = node.getPosition();
+        Tuple dir       = node.getDirection();
+        Double speed    = node.getSpeed();
         
-        if(zoneSizeHello == 1){ //SEM HOP LEN
-            //PEERS ID ARRAY
-            for(Tuple entry: peers) {
-                limit+=((byte[])(entry.x)).length;
+            //POSITION
+                //X
+                ByteBuffer buffer = ByteBuffer.allocate(8);
+                buffer.putDouble(((double)pos.x));
+                tmp = buffer.array();
+                limit+=8;
                 for(; counter<limit; counter++) {
-                    raw[counter] = ((byte[])(entry.x))[it++];
+                    raw[counter] = tmp[it++];
                 }
                 it = 0;
-            }
-        }else{ // COM HOP LEN
-            for(Tuple entry: peers) {
-                limit+=(((byte[])(entry.x)).length + 4);
-                
-                //HOP DIST
+                //Y
                 buffer.clear();
-                buffer.putInt((int)(entry.y));
+                buffer.putDouble(((double)pos.y));
                 tmp = buffer.array();
-                
+                limit+=8;
                 for(; counter<limit; counter++) {
                     raw[counter] = tmp[it++];
                 }
                 it = 0;
                 
-                //NODE ID DST
+            //DIRECTION
+                //X
+                buffer.clear();
+                buffer.putDouble(((double)dir.x));
+                tmp = buffer.array();
+                limit+=8;
                 for(; counter<limit; counter++) {
-                    raw[counter] = ((byte[])(entry.x))[it++];
+                    raw[counter] = tmp[it++];
                 }
                 it = 0;
-            }
-        }
+                //Y
+                buffer.clear();
+                buffer.putDouble(((double)dir.y));
+                tmp = buffer.array();
+                limit+=8;
+                for(; counter<limit; counter++) {
+                    raw[counter] = tmp[it++];
+                }
+                it = 0;
+                
+            //SPEED
+                //X
+                buffer.clear();
+                buffer.putDouble(speed);
+                tmp = buffer.array();
+                limit+=8;
+                for(; counter<limit; counter++) {
+                    raw[counter] = tmp[it++];
+                }
+        
         
         return raw;
     }
@@ -111,14 +118,81 @@ public class Hello {
     public static void load(byte[] raw, Node id, InetAddress origin) {
         
         int counter             = 1, limit = 1, it = 0; //Auxiliary variables
-        int zoneSizeHello       = 0, totalSize = 0, hopDist = 0; //Obtained Variables
-        byte[] tmp              = new byte[4];
-        byte[] seq_num          = new byte[4];
+        //int zoneSizeHello       = 0, totalSize = 0, hopDist = 0; //Obtained Variables
+        byte[] tmp              = new byte[8];
+        //byte[] seq_num          = new byte[4];
         byte[] nodeId           = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
-        byte[] nodeIdpeer       = new byte[32];
-        ArrayList<Tuple> tuple  = new ArrayList<>();
-        Tuple t                 = null;
+        //byte[] nodeIdpeer       = new byte[32];
+        //ArrayList<Tuple> tuple  = new ArrayList<>();
+        Tuple position          = null, direction = null;
+        Double speed            = 0.0, x = 0.0, y = 0.0;
         
+        
+        
+        //GET NODEID ORIGIN
+        limit+=32;
+        for(;counter<limit; counter++) nodeId[it++] = raw[counter];
+        it = 0;
+        
+        //POSITION DATA
+        
+            //POSITION
+            limit+=8;
+            for(;counter<limit; counter++) tmp[it++] = raw[counter];
+
+            ByteBuffer  wrapped = ByteBuffer.wrap(tmp);
+            x = wrapped.getDouble();
+            it = 0;
+        
+            limit+=8;
+            for(;counter<limit; counter++) tmp[it++] = raw[counter];
+
+            wrapped.clear();
+            wrapped = ByteBuffer.wrap(tmp);
+            y = wrapped.getDouble();
+            it = 0;       
+        
+            position = new Tuple(x,y);
+            
+            //DIRECTION
+            limit+=8;
+            for(;counter<limit; counter++) tmp[it++] = raw[counter];
+
+            wrapped.clear();
+            wrapped = ByteBuffer.wrap(tmp);
+            x = wrapped.getDouble();
+            it = 0;
+        
+            limit+=8;
+            for(;counter<limit; counter++) tmp[it++] = raw[counter];
+
+            wrapped.clear();
+            wrapped = ByteBuffer.wrap(tmp);
+            y = wrapped.getDouble();
+            it = 0;       
+        
+            direction = new Tuple(x,y);
+            
+            //SPEED
+            limit+=8;
+            for(;counter<limit; counter++) tmp[it++] = raw[counter];
+
+            wrapped.clear();
+            wrapped = ByteBuffer.wrap(tmp);
+            speed = wrapped.getDouble();
+            it = 0;
+            
+        if(!Crypto.cmpByteArray(nodeId, id.getId())) id.addPeerZone(nodeId, origin, position, direction, speed);
+        
+        //VERIFY IF PENDING REQUESTS
+        
+        
+        
+        
+        
+        
+        
+        /*
         //GET PDU TOTAL SIZE
         limit+=4;
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
@@ -134,12 +208,12 @@ public class Hello {
         wrapped = ByteBuffer.wrap(tmp);
         zoneSizeHello = wrapped.getInt();
         it = 0;
+        */
         
-        //GET NODEID ORIGIN
-        limit+=32;
-        for(;counter<limit; counter++) nodeId[it++] = raw[counter];
-        it = 0;
         
+        
+        
+        /*
         //GET SEQ DATA
         limit+=4;
         for(;counter<limit; counter++) seq_num[it++] = raw[counter];
@@ -192,6 +266,7 @@ public class Hello {
             }
 
             id.addPeerZone(nodeId, origin, seq_num, tuple);
-        }else System.out.println("JA TENHO OU SOU EU");
+        }else System.out.println("JA TENHO OU SOU EU");*/
+        
     }
 }
