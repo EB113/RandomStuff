@@ -56,14 +56,14 @@ public class DataRequest {
         limit++;
         
         //GET PDU TIME TO LIVE
-        limit+=4;
+        limit+=8;
         for(;counter<limit; counter++) tmp[it++] = raw[counter];
         wrapped = ByteBuffer.wrap(tmp);
         TTL = wrapped.getLong();
         it = 0;
         
         if(now < TTL){
-        
+            
             //GET NODEIDSRC 
             limit+=32;
             for(;counter<limit; counter++) nodeIdSrc[it++] = raw[counter];
@@ -74,7 +74,7 @@ public class DataRequest {
             for(;counter<limit; counter++) nodeIdDst[it++] = raw[counter];
             it = 0;
         
-            if(Crypto.cmpByteArray(node.getId(), nodeIdSrc)) {
+            if(!Crypto.cmpByteArray(node.getId(), nodeIdSrc)) {
                 
                 if(Crypto.cmpByteArray(node.getId(), nodeIdDst)) {
 
@@ -89,13 +89,13 @@ public class DataRequest {
 
                     
                     //PDU REMOTE REQUEST
-                    raw = DataRequest.dumpRemote(raw, node);
+                    raw = DataRequest.dumpRemote(raw, node, nodeIdDst);
 
                     //UDPQUEUEPUSH
                     control.pushQueueUDP(new Tuple(raw, peerAddr));*/
                 }
             }
-        }
+        }else System.out.println("FODEU");
         
         
     }
@@ -108,17 +108,17 @@ public class DataRequest {
         byte                secure    = node.config.getSecurity();
         byte                mode      = node.config.getMode();
         byte[]              req_num   = seq_num;
-        Tuple               posData   = node.getPosData(); //<ArrayList<Double>,Long>
+        Tuple               posData   = node.getPosData(nodeDst); //<ArrayList<Double>,Long>
         
         //AUXILIARY
         int     len     = 0, counter = 0, limit = 0, it = 0;
-        byte[] tmp      = null;
+        byte[]  tmp     = null;
         
         //TOTAL SIZE
         int posDataLen  = 8+8 + 8+8 + 8 + 8; //POS + DIR + SPEED + TIMESTAMP
-        len             = 1 + 1 + 1 + 1 + 4 + 8 + id.length + nodeDst.length + req_num.length;
+        len             = 1 + 1 + 1 + 1 + 8 + id.length + nodeDst.length + req_num.length + posDataLen;
         
-        //TYPE+MODE+SEC+GPS+TTL+SRC+DST+REQNUM+[GPSDATASRC]+[PUBK+NODESIG||NULL]+[TIMESTAMPGPS+GPSDATADST||NULL]+[PUBK+NODESIG||NULL]
+        //TYPE+MODE+SEC+GPS+TTL+SRC+DST+REQNUM+[TIMESTAMPGPS+GPSDATASRC]+[PUBK+NODESIG||NULL]+[TIMESTAMPGPS+GPSDATADST||NULL]+[PUBK+NODESIG||NULL]
         if(secure == 0x01)
             len += pubk.length + 32;
         if(posData != null)
@@ -149,6 +149,7 @@ public class DataRequest {
         
         //PDU TIME TO LIVE
         long ttl = node.getTTL() + System.currentTimeMillis();
+        
         ByteBuffer buffer = ByteBuffer.allocate(8);
         buffer.putLong(ttl);
         tmp = buffer.array();
@@ -182,7 +183,18 @@ public class DataRequest {
         Tuple   posLocal       = node.getPosition();
         Tuple   dirLocal       = node.getDirection();
         Double  speedLocal     = node.getSpeed();
+        long    timestamp      = node.getTimeStamp();
         
+            //TIMESTAMP
+            buffer.clear();
+            buffer.putLong(((long)timestamp));
+            tmp = buffer.array();
+            limit+=8;
+            for(; counter<limit; counter++) {
+                raw[counter] = tmp[it++];
+            }
+            it = 0;
+            
             //POSITION
                 //X
                 buffer.clear();
@@ -232,7 +244,7 @@ public class DataRequest {
                 for(; counter<limit; counter++) {
                     raw[counter] = tmp[it++];
                 }
-        
+                it = 0;
                 
         //SE SECURITY ACTIVE
         if(secure == 0x01) {
@@ -261,7 +273,7 @@ public class DataRequest {
             
             //TIMESTAMP
             buffer.clear();
-            buffer.putLong(((long)posLocal.y));
+            buffer.putLong(((long)posData.y));
             tmp = buffer.array();
             limit+=8;
             for(; counter<limit; counter++) {
@@ -274,7 +286,7 @@ public class DataRequest {
             for(Double data : pos) {
             
                 buffer.clear();
-                buffer.putDouble(((double)posLocal.x));
+                buffer.putDouble(((double)data));
                 tmp = buffer.array();
                 limit+=8;
                 for(; counter<limit; counter++) {
@@ -305,13 +317,13 @@ public class DataRequest {
         }   
         
         //ADD DATAREQUESTCACHE
-        node.addDataReq(node.getId(), nodeDst, seq_num, pubk, ttl, null);
+        node.addDataReq(node.getId(), nodeDst, seq_num, ttl, null, raw);
         
         return raw;
     }
     
     //TYPE+SEC+GPS+SIZE+TTL+SRC+DST+REQNUM+[GPSDATASRC]+[GPSDATADST||NULL]+TIMESTAMPGPS+[PUBK+NODESIG||NULL]
-    public static byte[] dumpRemote(byte[] raw, Node node) {
+    public static byte[] dumpRemote(byte[] raw, Node node, byte[] nodeIdDst) {
         
 
         byte[]              pubk      = node.getPubKey();
@@ -341,7 +353,7 @@ public class DataRequest {
             counter+= 8+8 + 8+8 + 8;
 
             //GETLOCALDESTGPSDATA
-            Tuple posData = node.getPosData(); //<ArrayList<Double>,Long>
+            Tuple posData = node.getPosData(nodeIdDst); //<ArrayList<Double>,Long>
 
             if(secByte != 0x00 || secByte != 0x02) {
 

@@ -332,6 +332,10 @@ public class Node {
         
         return out;        
     }
+
+    public long getTimeStamp() {
+        return this.timestamp;
+    }
     
     
     public void refreshPosData() throws IOException {
@@ -358,8 +362,9 @@ public class Node {
                 this.position.x = x;
                 this.position.y = y;
             }
-        
-        long timestamp = (System.currentTimeMillis() - this.timestamp)/1000;
+        long now = System.currentTimeMillis();
+        long timestamp = (now - this.timestamp)/1000;
+        this.timestamp = now;
         
         if(this.speed != null)
             synchronized(this.speed){
@@ -655,8 +660,26 @@ public class Node {
     }
     */
 
-    public Tuple getPosData() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    
+    public Tuple getPosData(byte[] nodeDst) {
+        
+        ByteArray nodeIdDst_new = new ByteArray(nodeDst);
+        Tuple tuple = null;
+        
+        //CHECK LOCAL
+        if(this.topo != null)
+            synchronized(this.topo){
+                tuple = this.topo.getPosPeer(nodeIdDst_new);
+            }
+        
+        //CHECK CACHE
+        if(tuple == null)
+            if(this.pcache != null)
+                synchronized(this.pcache){
+                    tuple = this.pcache.getPeer(nodeIdDst_new);
+                }
+        
+        return tuple;
     }
 
     public long getTTL() {
@@ -687,11 +710,11 @@ public class Node {
         return out;
     }
 
-    public void addDataReq(byte[] id, byte[] nodeDst, byte[] seq_num, byte[] peerKey, long ttl, LinkedList<InetAddress> usedPeers) {
+    public void addDataReq(byte[] id, byte[] nodeDst, byte[] seq_num, long ttl, LinkedList<InetAddress> usedPeers, byte[] raw) {
         
         if(this.drqcache != null)
             synchronized(this.drqcache){
-                this.drqcache.addReq(id, nodeDst, seq_num, peerKey, ttl, usedPeers);
+                this.drqcache.addReq(id, nodeDst, seq_num, ttl, usedPeers, raw);
             }
     }
 

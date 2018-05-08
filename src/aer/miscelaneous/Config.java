@@ -38,7 +38,7 @@ public class Config {
 
         long helloTimer            = 1; //Tempo de intervalos entre hellos enviados
         
-        long TTL                   = 5000; //TIME TO LIVE DATAREQPACK
+        long TTL                   = 10000; //TIME TO LIVE DATAREQPACK
 
         int attempNo               = 5; //Number of attempts
         int hopLimit               = 10; //Max Hops

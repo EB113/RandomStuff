@@ -6,6 +6,7 @@
 package aer.UDP;
 
 import aer.Data.Node;
+import aer.PDU.DataRequest;
 import aer.miscelaneous.Controller;
 import aer.miscelaneous.Crypto;
 import java.net.InetAddress;
@@ -42,7 +43,7 @@ public class Interpreter implements Runnable{
                 break;
             case 0x01:
                     //System.out.println("--->Request");
-                    //RReq.load(this.pdu, this.id, this.origin, this.control);
+                    DataRequest.load(this.pdu, this.id, this.origin, this.control);
                 break;
             case 0x02:
                     //System.out.println("--->Reply");              

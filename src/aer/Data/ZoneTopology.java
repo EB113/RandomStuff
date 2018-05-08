@@ -205,6 +205,29 @@ public class ZoneTopology {
         if(out.size() == 0) return null;
         else return out;
     }
+
+    Tuple getPosPeer(ByteArray nodeIdDst_new) {
+        
+        Tuple tuple = null;
+        ArrayList<Double> out = null;
+        
+        if(this.gem.containsKey(nodeIdDst_new)) {
+        
+            Info info = this.gem.get(nodeIdDst_new);
+            
+            out = new ArrayList<>(4);
+            
+            out.add(((Double)info.position.x));
+            out.add(((Double)info.position.y));
+            out.add(((Double)info.direction.x));
+            out.add(((Double)info.direction.y));
+            out.add(((Double)info.speed));
+            
+            tuple = new Tuple(out, info.timestamp);
+        }
+        
+        return tuple;
+    }
     /*
     //ROUTES COM RANk
     //RETURN TUPLE <ADDR,DIST>

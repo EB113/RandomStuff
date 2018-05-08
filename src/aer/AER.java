@@ -47,10 +47,10 @@ public class AER {
          Thread t_emitter_UDP       = new Thread(helloUDP);
         
          //TCP Thread Object Init + Thread Init
-         //ListenerTCP listenerTCP    = new ListenerTCP(control, config, id);
+         ListenerTCP listenerTCP    = new ListenerTCP(control, config, id);
          //EmitterTCP emitterTCP      = new EmitterTCP();
          
-         //Thread t_listener_TCP      = new Thread(listenerTCP);
+         Thread t_listener_TCP      = new Thread(listenerTCP);
          
          TimeUnit.SECONDS.sleep(5);
          
@@ -58,7 +58,7 @@ public class AER {
          t_queue_UDP.start();
          t_listener_UDP.start();
          t_emitter_UDP.start();
-         //t_listener_TCP.start();
+         t_listener_TCP.start();
          t_wd_zone.start();
          
          // Thread close Wait
@@ -66,7 +66,7 @@ public class AER {
          t_listener_UDP.join();
          t_emitter_UDP.join();
          t_wd_zone.join();
-         //t_listener_TCP.join();
+         t_listener_TCP.join();
          System.out.println("Server Exiting...");
         
          

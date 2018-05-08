@@ -110,10 +110,12 @@ public class ListenerTCP implements Runnable{
                                 int[] mode = {0,0,0,0};
                                 int i = 0;
                                 
-                                Boolean used = false;
-                                while(i<4) {
+                                Boolean used;
                                 
-                                    switch((mode[i++])++){
+                                while(i<4) {
+                                    used = false;
+                                    
+                                    switch(i++){
                                         
                                         //ZONE REQUEST
                                         case 0:
@@ -132,7 +134,7 @@ public class ListenerTCP implements Runnable{
                                                     //ADD QUEUE
                                                     this.control.pushQueueUDP(new Tuple(req_pdu, addr));
                                                 }
-                                            }else used = false;
+                                            }
                                             
                                             break;
                                             
@@ -153,7 +155,7 @@ public class ListenerTCP implements Runnable{
                                                     //ADD QUEUE
                                                     this.control.pushQueueUDP(new Tuple(req_pdu, addr));
                                                 }
-                                            }else used = false;
+                                            }
                                             
                                             break;
                                             
@@ -174,7 +176,7 @@ public class ListenerTCP implements Runnable{
                                                     //ADD QUEUE
                                                     this.control.pushQueueUDP(new Tuple(req_pdu, addr));
                                                 }
-                                            }else used = false;
+                                            }
                                             
                                             break;
                                             

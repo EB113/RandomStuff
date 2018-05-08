@@ -25,7 +25,13 @@ class DataReply {
     
     }
     
-    public static byte[] dump() {
+    public static byte[] dumpLocal() {
+        byte[] raw = null;
+        
+        return raw;
+    }
+    
+    public static byte[] dumpRemote() {
         byte[] raw = null;
         
         return raw;

@@ -19,21 +19,22 @@ public class DataRequestCache {
 
     //Value Class
     class Info {
+        
+        byte[]                  raw;
         byte[]                  nodeId_dst;
-        byte[]                  peerKey;
         
         LinkedList<InetAddress> usedPeers;
         
         long                    timestamp;
         
-        Info(LinkedList<InetAddress> usedPeers, byte[] nodeId_dst, byte[] peerKey, long timestamp) {
+        Info(LinkedList<InetAddress> usedPeers, byte[] nodeId_dst, long timestamp, byte[] raw) {
             
+            this.raw                = raw;
             this.nodeId_dst         = nodeId_dst;
             if(usedPeers != null)
                 this.usedPeers      = usedPeers;
             else
                 this.usedPeers      = new LinkedList<InetAddress>();
-            this.peerKey            = peerKey;
             this.timestamp          = timestamp;
         }
         
@@ -51,7 +52,7 @@ public class DataRequestCache {
         this.gem        = new HashMap<ByteArray, HashMap<ByteArray, Info>>();
     }
 
-    void addReq(byte[] src_old, byte[] dst_old, byte[] req_num_old, byte[] peerKey, long ttl, LinkedList<InetAddress> usedPeers) {
+    void addReq(byte[] src_old, byte[] dst_old, byte[] req_num_old, long ttl, LinkedList<InetAddress> usedPeers, byte[] raw) {
         
         ByteArray src       = new ByteArray(src_old);
         ByteArray req_num   = new ByteArray(req_num_old);
@@ -68,7 +69,7 @@ public class DataRequestCache {
                     for(InetAddress addr : usedPeers) info.usedPeers.push(addr);
             }else if(tmpMap.size() < config.getReqMapSize()) {
                 
-                tmpMap.put(req_num, new Info(usedPeers, dst_old, peerKey, ttl));
+                tmpMap.put(req_num, new Info(usedPeers, dst_old, ttl, raw));
                 this.gem.put(src, tmpMap);
             }else{
                 
@@ -78,7 +79,7 @@ public class DataRequestCache {
             if(this.gem.size() < config.getDataCacheSize()) {//SE TEM ESPACO
                 
                 HashMap<ByteArray, Info> tmpMap = new HashMap<>();
-                Info info = new Info(usedPeers, dst_old, peerKey, ttl);
+                Info info = new Info(usedPeers, dst_old, ttl, raw);
                 
                 tmpMap.put(req_num, info);
                 this.gem.put(src, tmpMap);

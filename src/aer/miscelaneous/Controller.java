@@ -70,7 +70,7 @@ public class Controller {
             
             synchronized(this.queueTCP){
                 
-                if(this.queueTCP.containsKey(req_num)) return null;
+                if(this.queueTCP.containsKey(req_num)) return this.queueTCP.get(req_num);
 
                 coms = new ComsTCP(pubk);
                 this.queueTCP.put(req_num, coms);
