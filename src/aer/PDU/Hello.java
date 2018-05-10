@@ -7,6 +7,7 @@ package aer.PDU;
 
 import aer.Data.Node;
 import aer.miscelaneous.ByteArray;
+import aer.miscelaneous.Controller;
 import aer.miscelaneous.Crypto;
 import aer.miscelaneous.Tuple;
 import java.net.InetAddress;
@@ -115,7 +116,7 @@ public class Hello {
         return raw;
     }
     
-    public static void load(byte[] raw, Node id, InetAddress origin) {
+    public static void load(byte[] raw, Node node, InetAddress origin, Controller control) {
         
         int counter             = 1, limit = 1, it = 0; //Auxiliary variables
         //int zoneSizeHello       = 0, totalSize = 0, hopDist = 0; //Obtained Variables
@@ -182,11 +183,28 @@ public class Hello {
             speed = wrapped.getDouble();
             it = 0;
             
-        if(!Crypto.cmpByteArray(nodeId, id.getId())) id.addPeerZone(nodeId, origin, position, direction, speed);
-        
-        //VERIFY IF PENDING REQUESTS
-        
-        
+        if(!Crypto.cmpByteArray(nodeId, node.getId())){
+            
+            if(!node.existsZonePeer(nodeId)){
+                
+                //VERIFY IF PENDING REQUESTS
+                ArrayList<byte[]> reqs = node.getReqCache(nodeId, true);
+                ArrayList<byte[]> reps = node.getRepCache(nodeId, true);
+                        
+                if(reqs != null)
+                    for(byte[] req : reqs){
+                        control.pushQueueUDP(new Tuple(req, origin));
+                    }
+
+                if(reps != null)
+                    for(byte[] rep : reps){
+                        control.pushQueueUDP(new Tuple(rep, origin));
+                    }
+            }
+            
+            node.addPeerZone(nodeId, origin, position, direction, speed);
+            
+        }
         
         
         

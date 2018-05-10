@@ -28,7 +28,9 @@ public class Config {
         int reqMapSize              = 10; //size per array for limiting per nodeid, 1 nodeid can have more than 1 request
         int hitMapSize              = 10;
 
-        long zoneTimeDelta         = 5000;  //Tempo max entre peer hellos  (ms)
+        long zoneTimeDelta         = 2000;  //Tempo max entre peer hellos  (ms)
+        long dataTimeDelta         = 10000; //Tempo max por Req ou Rep na Cache
+        
         /*
         long reqTimeDelta          = 60000; //Tempo de vida dos Requests  (ms)
         long repTimeDelta          = 30000; //Tempo de vida dos Requests  (ms)
@@ -38,16 +40,16 @@ public class Config {
 
         long helloTimer            = 1; //Tempo de intervalos entre hellos enviados
         
-        long TTL                   = 10000; //TIME TO LIVE DATAREQPACK
+        long TTL                   = 50000; //TIME TO LIVE DATAREQPACK
 
         int attempNo               = 5; //Number of attempts
         int hopLimit               = 10; //Max Hops
         byte security              = 0x00; //SECURITY 0X00 OFF 0X01 ON
     
     //Session
-    String coreSession             = "34189";
+    String coreSession             = "40617";
     int difficulty                 = 1; //Num de zeros msb's no nodeId
-    long peerCacheTimeDelta        = 60000; //MAX time for peerCache entrys 1min
+    long peerCacheTimeDelta        = 25000; //MAX time for peerCache entrys 1min
     byte mode                      = 0x01; //Changeable vs not changeable
     
     public Config(){
@@ -252,6 +254,10 @@ public class Config {
 
     public int getDataCacheSize() {
         return dataCacheSize;
+    }
+    
+    public long getDataReqTimeDelta() {
+        return this.dataTimeDelta;
     }
     
 }

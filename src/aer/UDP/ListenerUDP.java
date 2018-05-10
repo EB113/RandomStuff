@@ -11,6 +11,8 @@ import aer.miscelaneous.Crypto;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -56,7 +58,7 @@ public class ListenerUDP implements Runnable{
                     //NEW PDU
                     byte[] data = new byte[dp.getLength()];
                     System.arraycopy(dp.getData(), dp.getOffset(), data, 0, dp.getLength());
-                    
+                     
                     (new Thread(new Interpreter(control, this.id, data, dp.getAddress()))).start();
                     
                 } catch (SocketException ex) {

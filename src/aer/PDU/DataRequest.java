@@ -11,9 +11,11 @@ import aer.miscelaneous.Controller;
 import aer.miscelaneous.Crypto;
 import aer.miscelaneous.Tuple;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.PrivateKey;
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 /**
  *
@@ -22,7 +24,7 @@ import java.util.ArrayList;
 public class DataRequest {
     
     //TYPE+MODE+SEC+GPS+TTL+SRC+DST+REQNUM+[GPSDATASRC]+[PUBK+NODESIG||NULL]+[TIMESTAMPGPS+GPSDATADST||NULL]+[PUBK+NODESIG||NULL]
-    public static void load(byte[] raw, Node node, InetAddress peerAddr, Controller control) {
+    public static void load(byte[] raw, Node node, InetAddress peerAddr, Controller control) throws UnknownHostException {
         
         //LOCAL VARIABLES
         long now = System.currentTimeMillis();
@@ -37,6 +39,7 @@ public class DataRequest {
         long TTL                = 0;
         byte[] nodeIdSrc        = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
         byte[] nodeIdDst        = new byte[32]; //Estatico para reduzir trabalho e tamanho de PDU mas teria que ser feito
+        byte[] req_num          = new byte[4];
         
         
         
@@ -73,34 +76,175 @@ public class DataRequest {
             limit+=32;
             for(;counter<limit; counter++) nodeIdDst[it++] = raw[counter];
             it = 0;
-        
-            if(!Crypto.cmpByteArray(node.getId(), nodeIdSrc)) {
+            
+            if(!Crypto.cmpByteArray(node.getId(), nodeIdSrc) && !node.existsDataRequest(nodeIdSrc, nodeIdDst, req_num)) {
                 
+                //GET REQ_NUM
+                limit+=4;
+                for(;counter<limit; counter++) req_num[it++] = raw[counter];
+                it = 0;
+                
+                Tuple  tuple            = null;
+                    
+                //GET SRC POS DATA
+                    ArrayList<Double> posData = new ArrayList<>(5);
+
+                    //TIMESTAMP
+                    limit+=8;
+                    for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                    wrapped = ByteBuffer.wrap(tmp);
+                    long timestamp = wrapped.getLong();
+                    it = 0;
+
+                    //POSITION
+                    limit+=8;
+                    for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                    wrapped = ByteBuffer.wrap(tmp);
+                    posData.add(wrapped.getDouble());
+                    it = 0;
+                    limit+=8;
+                    for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                    wrapped = ByteBuffer.wrap(tmp);
+                    posData.add(wrapped.getDouble());
+                    it = 0;
+
+                    //DIRECTION
+                    limit+=8;
+                    for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                    wrapped = ByteBuffer.wrap(tmp);
+                    posData.add(wrapped.getDouble());
+                    it = 0;
+                    limit+=8;
+                    for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                    wrapped = ByteBuffer.wrap(tmp);
+                    posData.add(wrapped.getDouble());
+                    it = 0;
+
+                    //SPEED
+                    limit+=8;
+                    for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                    wrapped = ByteBuffer.wrap(tmp);
+                    posData.add(wrapped.getDouble());
+                    it = 0;
+
+                    tuple = new Tuple(posData, timestamp); 
+                    
+                    //ADD REQ CACHE
+                    boolean exists = node.addDataReq(nodeIdSrc, nodeIdDst, req_num, TTL, null, raw);
+                    
+                    //VERIFY SRC PENDING REQUESTS
+                    ArrayList<byte[]> pendingReqSrc = node.getReqCache(nodeIdSrc, false);
+                    if(pendingReqSrc != null)  for(byte[] req : pendingReqSrc) control.pushQueueUDP(new Tuple(req, peerAddr));
+                    ArrayList<byte[]> pendingRepSrc = node.getRepCache(nodeIdSrc, false);
+                    if(pendingRepSrc != null)  for(byte[] rep : pendingRepSrc) control.pushQueueUDP(new Tuple(rep, peerAddr));
+                    
+                    //ADD PEER REQ CACHE SRC
+                    node.addPeerCache(nodeIdSrc, tuple);
                 if(Crypto.cmpByteArray(node.getId(), nodeIdDst)) {
-
-                    System.out.println("RECEBILOCAL");
-                }else {
-                    System.out.println("RECEBIREMOTE");
-                    /*
-                    //FORWARDING STATEGIES
                     
-                    
-                    //ADD PEER CACHE SRC DST
-
-                    
+                    System.out.println("--->LocalREQ");
                     //PDU REMOTE REQUEST
-                    raw = DataRequest.dumpRemote(raw, node, nodeIdDst);
+                    raw = DataReply.dumpLocal(node, nodeIdSrc, req_num, tuple);
 
                     //UDPQUEUEPUSH
-                    control.pushQueueUDP(new Tuple(raw, peerAddr));*/
+                    if(raw != null) control.pushQueueUDP(new Tuple(raw, peerAddr));
+                }else {
+                    
+                    System.out.println("--->RemoteREQ");
+                    
+                    if(gps != 0x00){
+                        if(secure != 0x00){
+                        
+                            counter+=32;//pubk
+                            counter+=32;//sig
+                            limit=counter;
+                        }
+                        
+                        //GET DST POS DATA
+                        posData = new ArrayList<>(5);
+
+                        //TIMESTAMP
+                        limit+=8;
+                        for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                        wrapped = ByteBuffer.wrap(tmp);
+                        timestamp = wrapped.getLong();
+                        it = 0;
+
+                        //POSITION
+                        limit+=8;
+                        for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                        wrapped = ByteBuffer.wrap(tmp);
+                        posData.add(wrapped.getDouble());
+                        it = 0;
+                        limit+=8;
+                        for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                        wrapped = ByteBuffer.wrap(tmp);
+                        posData.add(wrapped.getDouble());
+                        it = 0;
+
+                        //DIRECTION
+                        limit+=8;
+                        for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                        wrapped = ByteBuffer.wrap(tmp);
+                        posData.add(wrapped.getDouble());
+                        it = 0;
+                        limit+=8;
+                        for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                        wrapped = ByteBuffer.wrap(tmp);
+                        posData.add(wrapped.getDouble());
+                        it = 0;
+
+                        //SPEED
+                        limit+=8;
+                        for(;counter<limit; counter++) tmp[it++] = raw[counter];
+                        wrapped = ByteBuffer.wrap(tmp);
+                        posData.add(wrapped.getDouble());
+                        it = 0;
+                        
+                        //ADD PEER REQ CACHE SRC DST
+                        node.addPeerCache(nodeIdDst, tuple);
+                    }
+                    
+                    
+                    if(!exists){
+                        raw = DataRequest.dumpRemote(raw, node, nodeIdDst);
+
+                        LinkedList<InetAddress> peerList = null;
+                        LinkedList<InetAddress> usedPeers = new LinkedList<>();
+
+                        //FORWARDING STATEGIES
+                        peerList = node.getZonePeer(nodeIdDst);
+                        if(peerList == null) {
+                            
+                            peerList = node.getPeerCache(nodeIdDst);
+                            
+                            if(peerList == null) {
+
+                                peerList = node.getOrientUnic(null);
+                            }
+                        }
+
+                        if(peerList != null){
+                            for(InetAddress addr : peerList)
+                            {
+                                //ADD REQUEST TO CACHE
+                                usedPeers.push(addr);
+
+                                //ADD QUEUE
+                                control.pushQueueUDP(new Tuple(raw, addr));
+                            }
+                        }
+                    }    
                 }
             }
-        }else System.out.println("FODEU");
+        }else System.out.println("TIMEOUT");
         
         
     }
     
     public static byte[] dumpLocal(Node node, byte[] nodeDst, byte[] seq_num) {
+        
+        System.out.println("<---LocalREQ");
         
         //GET LOCAL NODE PDU DATA
         byte[]              id        = node.getId();
@@ -325,7 +469,8 @@ public class DataRequest {
     //TYPE+SEC+GPS+SIZE+TTL+SRC+DST+REQNUM+[GPSDATASRC]+[GPSDATADST||NULL]+TIMESTAMPGPS+[PUBK+NODESIG||NULL]
     public static byte[] dumpRemote(byte[] raw, Node node, byte[] nodeIdDst) {
         
-
+        System.out.println("<---remoteREQ");
+        
         byte[]              pubk      = node.getPubKey();
         
         byte[]      tmp     = new byte[8];
@@ -375,10 +520,98 @@ public class DataRequest {
                     if(timestamp < ((long)posData.y)){
 
                         if(secByte == 0x00){
+                            
+                            if(node.config.getSecurity() == 0x01){
+                                
+                                //NEW BYTEARRAY
+                                int gpsLen = 8 +8+8+ 8+8+ 8;
+                                int newlen = raw.length + gpsLen + 32+32; //GPSDATA + KEY + SIG
+                                byte[] newraw = new byte[newlen];
+                                
+                                //EXTRACT DATA
+                                timestamp = ((long)posData.y);
+                                ArrayList<Double> coords = ((ArrayList<Double>)posData.x);
 
-                            //NEW BYTEARRAY
-                            int posDataLen  = 8+8 + 8+8 + 8 + 8; //POS + DIR + SPEED + TIMESTAMP
-                            int len         = 1 + 1 + 1 + 4 + 8 + 32 + 32 + 4;
+                                limit = counter;
+                                for(int i = 0; i<limit; i++)
+                                    newraw[i] = raw[i];
+
+                                //TIMESTAMP
+                                wrapped.clear();
+                                wrapped.putLong(((long)posData.y));
+                                tmp = wrapped.array();
+                                limit+=8;
+                                for(; counter<limit; counter++) {
+                                    newraw[counter] = tmp[it++];
+                                }
+                                it = 0;
+
+                                //MOVEMENT VALUES
+                                for(Double data : coords) {
+
+                                    wrapped.clear();
+                                    wrapped.putDouble(((double)data));
+                                    tmp = wrapped.array();
+                                    limit+=8;
+                                    for(; counter<limit; counter++) {
+                                        newraw[counter] = tmp[it++];
+                                    }
+                                    it = 0;
+                                }
+                                
+                                //GENERATE SIG
+                                byte[] sig = node.GenerateSignature(newraw, limit);
+
+                                //PUBKEY
+                                limit+=pubk.length;
+                                for(; counter<limit; counter++) {
+                                    raw[counter] = pubk[it++];
+                                }
+                                it = 0;
+
+                                limit+=32;
+                                for(; counter<limit; counter++) {
+                                    raw[counter] = sig[it++];
+                                }
+                                it = 0;
+                                
+                            }else{
+                                //NEW BYTEARRAY
+                                int gpsLen = 8 +8+8+ 8+8+ 8;
+                                int newlen = raw.length + gpsLen; //GPSDATA + KEY + SIG
+                                byte[] newraw = new byte[newlen];
+                                
+                                //EXTRACT DATA
+                                timestamp = ((long)posData.y);
+                                ArrayList<Double> coords = ((ArrayList<Double>)posData.x);
+
+                                limit = counter;
+                                for(int i = 0; i<limit; i++)
+                                    newraw[i] = raw[i];
+
+                                //TIMESTAMP
+                                wrapped.clear();
+                                wrapped.putLong(((long)posData.y));
+                                tmp = wrapped.array();
+                                limit+=8;
+                                for(; counter<limit; counter++) {
+                                    newraw[counter] = tmp[it++];
+                                }
+                                it = 0;
+
+                                //MOVEMENT VALUES
+                                for(Double data : coords) {
+
+                                    wrapped.clear();
+                                    wrapped.putDouble(((double)data));
+                                    tmp = wrapped.array();
+                                    limit+=8;
+                                    for(; counter<limit; counter++) {
+                                        newraw[counter] = tmp[it++];
+                                    }
+                                    it = 0;
+                                }
+                            }
 
                         }else{
 
@@ -406,7 +639,7 @@ public class DataRequest {
                                 it = 0;
                             }
 
-
+                            
                             //GENERATE SIG
                             byte[] sig = node.GenerateSignature(raw, limit);
 
@@ -425,16 +658,71 @@ public class DataRequest {
                         }
                     }
                 }else {
-
-                    if(secByte == 0x00){
-
-                        //NEW BYTEARRAY
-
-                    }else{
-
-                        //NEW BYTEARRAY
-
+                    
+                    int gpsLen = 8 +8+8+ 8+8+ 8;
+                    int newlen = raw.length + gpsLen + 32+32; //GPSDATA + KEY + SIG
+                    byte[] newraw = new byte[newlen];
+                    
+                    //EXTRACT DATA
+                    long timestamp = ((long)posData.y);
+                    ArrayList<Double> coords = ((ArrayList<Double>)posData.x);
+                    
+                    limit = counter;
+                    for(int i = 0; i<limit; i++)
+                        newraw[i] = raw[i];
+                    
+                    //TIMESTAMP
+                    wrapped.clear();
+                    wrapped.putLong(((long)posData.y));
+                    tmp = wrapped.array();
+                    limit+=8;
+                    for(; counter<limit; counter++) {
+                        newraw[counter] = tmp[it++];
                     }
+                    it = 0;
+
+                    //MOVEMENT VALUES
+                    for(Double data : coords) {
+
+                        wrapped.clear();
+                        wrapped.putDouble(((double)data));
+                        tmp = wrapped.array();
+                        limit+=8;
+                        for(; counter<limit; counter++) {
+                            newraw[counter] = tmp[it++];
+                        }
+                        it = 0;
+                    }
+                    
+                    //COM SECURE
+                    if(node.config.getSecurity() == 0x01){
+                        
+                        if(secByte == 0x00){
+                            newraw[1] = 0x02;
+                            newraw[2] = 0x02;
+                        }else {
+                            newraw[1] = 0x03;
+                            newraw[2] = 0x02;
+                        }
+                        
+                        //GENERATE SIG
+                        byte[] sig = node.GenerateSignature(raw, limit);
+
+                        //PUBKEY
+                        limit+=pubk.length;
+                        for(; counter<limit; counter++) {
+                            newraw[counter] = pubk[it++];
+                        }
+                        it = 0;
+
+                        limit+=32;
+                        for(; counter<limit; counter++) {
+                            newraw[counter] = sig[it++];
+                        }
+                        it = 0;
+                    }
+                    
+                    return newraw;
                 }
             }
         }

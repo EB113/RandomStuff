@@ -6,11 +6,15 @@
 package aer.UDP;
 
 import aer.Data.Node;
+import aer.PDU.DataReply;
 import aer.PDU.DataRequest;
 import aer.miscelaneous.Controller;
 import aer.miscelaneous.Crypto;
 import java.net.InetAddress;
 import aer.PDU.Hello;
+import java.net.UnknownHostException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 /**
  *
  * @author pedro
@@ -38,16 +42,21 @@ public class Interpreter implements Runnable{
         switch(this.pdu[0]) {
             case 0x00:
                     //System.out.println("--->Hello");
-                    Hello.load(this.pdu, this.id, this.origin);
+                    Hello.load(this.pdu, this.id, this.origin, this.control);
                     //this.id.print();
                 break;
             case 0x01:
+                
+                try {
                     //System.out.println("--->Request");
                     DataRequest.load(this.pdu, this.id, this.origin, this.control);
+                } catch (UnknownHostException ex) {
+                    Logger.getLogger(Interpreter.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 break;
             case 0x02:
                     //System.out.println("--->Reply");              
-                    //RRep.load(this.pdu, this.id, this.origin, this.control);
+                    DataReply.load(this.pdu, this.id, this.origin, this.control);
                 break;
             default:
                 System.out.println("WRONG PDU TYPE!");

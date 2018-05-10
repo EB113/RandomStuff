@@ -6,7 +6,8 @@
 package aer.Data;
 
 // Class que contem informacao relativa a Topologia Local com tamanho N 
-
+import org.apache.commons.math3.*;
+        
 import aer.miscelaneous.ByteArray;
 import aer.miscelaneous.Config;
 import aer.miscelaneous.Crypto;
@@ -20,6 +21,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
+import org.apache.commons.math3.analysis.differentiation.DerivativeStructure;
+import org.apache.commons.math3.analysis.solvers.LaguerreSolver;
+import org.apache.commons.math3.complex.Complex;
 
 public class ZoneTopology {
 
@@ -94,7 +98,7 @@ public class ZoneTopology {
        reqTime  = 0.0;
     }
     
-    public void addPeerZone(byte[] myid, byte[] nodeId_old, InetAddress addr6, Tuple position, Tuple direction, Double speed) {
+    public void addPeerZone(byte[] nodeId_old, InetAddress addr6, Tuple position, Tuple direction, Double speed) {
         
         Info        info        = null;
         ByteArray   nodeId      = new ByteArray(nodeId_old);
@@ -105,14 +109,14 @@ public class ZoneTopology {
             info = new Info(addr6, 1, position, direction, speed, 1);
             
             this.gem.put(nodeId, info);
-            this.peerCache.rmPeer(nodeId);
+            this.peerCache.rmZonePeer(nodeId);
             
         } else if(this.gem.containsKey(nodeId)) {
             
             info = this.gem.get(nodeId);
             
-            info = new Info(addr6, 1, position, direction, speed, ++info.helloCounter);
-            this.gem.put(nodeId, info);
+            Info tmp = new Info(addr6, 1, position, direction, speed, ++info.helloCounter);
+            this.gem.put(nodeId, tmp);
         }
         
         return;
@@ -135,7 +139,7 @@ public class ZoneTopology {
             
             if((now - info.getTimeStamp() > config.getZoneTimeDelta())) {
 
-                this.peerCache.addPeer(entry.getKey(), info);
+                this.peerCache.addZonePeer(entry.getKey(), info);
                 iter.remove();
             }
         }
@@ -172,34 +176,182 @@ public class ZoneTopology {
 
     LinkedList<InetAddress> getOptimal(Tuple tuple) {
         
-        LinkedList<InetAddress> out = null;
+        LinkedList<InetAddress> out = new LinkedList<>();
         
-        /*
-        ArrayList<Double> peerInfo = ((ArrayList<Double>) tuple.x);
-        long timestamp             = ((long) tuple.y);
+        //TARGET INFO
+        ArrayList<Double> posData = ((ArrayList<Double>)tuple.x);
+        long timestamp = ((long)(tuple.y));
         
-        Double positionX    = peerInfo.get(0);
-        Double positionY    = peerInfo.get(1);
-        Double directionX   = peerInfo.get(2);
-        Double directionY   = peerInfo.get(3);
-        Double speed        = peerInfo.get(4);
+        Double positionX    = posData.get(0);
+        Double positionY    = posData.get(1);
+        Double directionX   = posData.get(2);
+        Double directionY   = posData.get(3);
         
-        Double newPosX
+        Double lowestDist = 1000000000.0;
+        InetAddress bestHop = null;
+        for(Info info : this.gem.values()){
         
-        
-        for(Info info: this.gem.values()) {
             
-        }*/
+            //POINT DISTANCE
+
+            Double[] resultX = {((Double)(info.position.x))-positionX,((Double)(info.direction.x))-directionX};
+            Double[] resultY = {((Double)(info.position.x))-positionY,((Double)(info.direction.y))-directionY};
+
+            Double[] quadResultX = {Math.pow(resultX[0],2),2*resultX[0]*resultX[1],Math.pow(resultX[1],2)};
+            Double[] quadResultY = {Math.pow(resultY[0],2),2*resultY[0]*resultY[1],Math.pow(resultY[1],2)};
+
+            Double[] inner = {quadResultX[0]+quadResultY[0], quadResultX[1]+quadResultY[1], quadResultX[2]+quadResultY[2]}; 
+
+            Double[] innerDeriv = {inner[1], 2*inner[2]};
+
+            Double[] finalDeriv = {(innerDeriv[0]*inner[0])/2, (innerDeriv[0]*inner[1])/2 + (innerDeriv[1]*inner[0])/2, 
+                                       (innerDeriv[0]*inner[2])/2 + (innerDeriv[1]*inner[1])/2, (innerDeriv[1]*inner[2])/2};
+
+
+
+            double[] coefficients = {finalDeriv[0], finalDeriv[1], finalDeriv[2], finalDeriv[3]};
+            
+            LaguerreSolver solver = new LaguerreSolver();
+            Complex[] result = solver.solveAllComplex(coefficients, 0, 5000);
+
+            Double[][] posSol = new Double[3][2];
+            Double[] distSol  = new Double[3];
+
+            int i = 0;
+
+
+            if(result != null){
+                for(Complex c : result) {
+                    Double outValue = c.getReal();
+
+                    posSol[i][0] = resultX[0] + resultX[1] * outValue;
+                    posSol[i][1] = resultY[0] + resultY[1] * outValue;
+
+                    distSol[i] = Math.sqrt(Math.pow(resultX[0] + (outValue * resultX[1]),2) + Math.pow(resultY[0] + (outValue * resultY[1]),2));
+                }
+            }
+            
+            if(distSol != null){
+                
+                for(Double tmp : distSol){ 
+                    
+                    if(tmp!= null && tmp<lowestDist && tmp >= 0){
+                        lowestDist = tmp;
+                        bestHop = info.hop_addr;
+                    }
+                }
+            }
+        }
         
-        return null;
+        out.add(bestHop);
+        
+        if(out.size() == 0) return null;
+        return out;
     }
 
-    LinkedList<InetAddress> getOrientUnic(LinkedList<InetAddress> usedPeers) {
+    Double pointDist(Double pointAx, Double pointAy, Double pointBx, Double pointBy) {
+    
+        return Math.sqrt(Math.pow(pointAx-pointBx, 2) + Math.pow(pointAy-pointBy, 2));
+    }
+    
+    Double vectorLen(Double dirX, Double dirY) {
+        return Math.sqrt(Math.pow(dirX, 2) + Math.pow(dirY,2));
+    }
+    
+    Double vectorMult(Double[] orient, Double dirX, Double dirY) {
+        return (orient[0]*dirX)+(orient[1]*dirY);
+    }
+    
+    Double vectorAngle(Double[] orient, Double dirX, Double dirY) {
+        return Math.acos(vectorMult(orient, dirX, dirY)/(vectorLen(orient[0], orient[1])*vectorLen(dirX, dirY)));
+    }
+    
+    Double crossProduct(Double[] orient, Double dirX, Double dirY) {
+        return vectorLen(orient[0], orient[1])*vectorLen(dirX, dirY)*Math.sin(vectorAngle(orient, dirX, dirY));
+    }
+    
+    int vectorOrientation(Double peerX, Double peerY, Double myX, Double myY) {
+        /*
+        Double[] upLeft = {-1.0, 1.0};
+        Double[] upRight= {1.0, 1.0};
+        Double[] downLeft = {-1.0, -1.0};
+        Double[] downRight = {1.0, -1.0};
+        */
+        
+        Double dirX = (peerX) - myX;
+        Double dirY = (peerY) - myY;
+        
+        if(dirX >0.0){
+        
+            if(dirY > 0.0){
+                return 0;
+            }else{
+                return 3;
+            }
+        }else{
+        
+            if(dirY > 0.0){
+                return 1;
+            }else{
+                return 2;
+            }
+        }
+        
+    }
+    
+    LinkedList<InetAddress> getOrientUnic(LinkedList<InetAddress> usedPeers, Tuple mypos) {
         
         LinkedList<InetAddress> out = new LinkedList<>();
         
+        Double dist = 0.0;
+        
+        Tuple[] hops = new Tuple[4];
+        for(int i=0; i<4; i++){
+            hops[i] = new Tuple(new Double(10000.0), null);
+        }
+                
         for(Info info : this.gem.values()){
+            dist = pointDist(((Double)(info.position.x)), ((Double)(info.position.y)), ((Double)(mypos.x)), ((Double)(mypos.y)));
             
+            switch(vectorOrientation(((Double)(info.position.x)), ((Double)(info.position.y)), ((Double)(mypos.x)), ((Double)(mypos.y)))) {
+                
+                //NORTHRight
+                case 0:
+                    System.out.println("NORTHRight");
+                    if(dist>((Double)(hops[0].x)))
+                        hops[0].x = dist;
+                        hops[0].y = info.hop_addr;
+                    break;
+                //NORTHLeft
+                case 1:
+                    System.out.println("NORTHLeft");
+                    if(dist>((Double)(hops[1].x)))
+                        hops[1].x = dist;
+                        hops[1].y = info.hop_addr;
+                    break;
+                //SOUTHLeft
+                case 2:
+                    System.out.println("SOUTHLeft");
+                    if(dist>((Double)(hops[2].x)))
+                        hops[2].x = dist;
+                        hops[2].y = info.hop_addr;
+                    break;
+                //SOUTHRight
+                case 3:
+                    System.out.println("SOUTHRight");
+                    if(dist>((Double)(hops[3].x)))
+                        hops[3].x = dist;
+                        hops[3].y = info.hop_addr;
+                    break;
+                default:
+                    break;
+            }
+        }
+        
+        for(Tuple it : hops){
+            if(it.y != null){
+                out.add(((InetAddress)(it.y)));
+            }
         }
         
         if(out.size() == 0) return null;
@@ -227,6 +379,10 @@ public class ZoneTopology {
         }
         
         return tuple;
+    }
+
+    boolean existsPeer(ByteArray nodeID) {
+        return this.gem.containsKey(nodeID);
     }
     /*
     //ROUTES COM RANk

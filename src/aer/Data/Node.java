@@ -35,6 +35,8 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.SignatureException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.logging.Level;
@@ -184,7 +186,7 @@ public class Node {
         if(this.topo != null && this.pcache != null)
             synchronized(this.pcache){
                 synchronized(this.topo){
-                    this.topo.addPeerZone(this.id, nodeId, addr6, position, direction, speed);
+                    this.topo.addPeerZone(nodeId, addr6, position, direction, speed);
                 }
             }
         return;
@@ -278,7 +280,7 @@ public class Node {
             }
         if(this.pcache != null)
             synchronized(this.pcache){
-                System.out.println("PeerCacheNo: " + this.pcache.gem.size());
+                System.out.println("PeerCacheNo: " + this.pcache.gemZone.size());
                 this.topo.printPeers();
             }
         System.out.println("POS: [" + ((double)this.position.x) + ", " + ((double)this.position.y) + "] " 
@@ -346,30 +348,32 @@ public class Node {
         BufferedReader reader = new BufferedReader(new FileReader(path));
         String line = reader.readLine();
         
-        String[] parts = line.split(" ");
-       
-        Double x = Double.parseDouble(parts[0]);
-        Double y = Double.parseDouble(parts[1]);
-            
-        if(this.direction != null)
-            synchronized(this.direction){
-                this.direction.x = x - (double)this.position.x;
-                this.direction.y = y - (double)this.position.y;
-            }
-        
-        if(this.position != null)
-            synchronized(this.position){
-                this.position.x = x;
-                this.position.y = y;
-            }
-        long now = System.currentTimeMillis();
-        long timestamp = (now - this.timestamp)/1000;
-        this.timestamp = now;
-        
-        if(this.speed != null)
-            synchronized(this.speed){
-                this.speed = Math.sqrt(Math.pow((double)this.direction.x,2) + Math.pow((double)this.direction.y,2))/timestamp;
-            }
+        if(line != null){
+            String[] parts = line.split(" ");
+
+            Double x = Double.parseDouble(parts[0]);
+            Double y = Double.parseDouble(parts[1]);
+
+            if(this.direction != null)
+                synchronized(this.direction){
+                    this.direction.x = x - (double)this.position.x;
+                    this.direction.y = y - (double)this.position.y;
+                }
+
+            if(this.position != null)
+                synchronized(this.position){
+                    this.position.x = x;
+                    this.position.y = y;
+                }
+            long now = System.currentTimeMillis();
+            long timestamp = (now - this.timestamp)/1000;
+            this.timestamp = now;
+
+            if(this.speed != null)
+                synchronized(this.speed){
+                    this.speed = Math.sqrt(Math.pow((double)this.direction.x,2) + Math.pow((double)this.direction.y,2))/timestamp;
+                }
+        }
     }
     
     
@@ -710,14 +714,31 @@ public class Node {
         return out;
     }
 
-    public void addDataReq(byte[] id, byte[] nodeDst, byte[] seq_num, long ttl, LinkedList<InetAddress> usedPeers, byte[] raw) {
+    public boolean addDataReq(byte[] nodeSrc, byte[] nodeDst, byte[] seq_num, long ttl, LinkedList<InetAddress> usedPeers, byte[] raw) {
         
+        boolean out = false;
         if(this.drqcache != null)
             synchronized(this.drqcache){
-                this.drqcache.addReq(id, nodeDst, seq_num, ttl, usedPeers, raw);
+                out = this.drqcache.addReq(nodeSrc, nodeDst, seq_num, ttl, usedPeers, raw);
             }
+        
+        return out;
     }
-
+    
+    public boolean addDataRep(byte[] nodeSrc, byte[] nodeDst, byte[] seq_num, long ttl, LinkedList<InetAddress> usedPeers, byte[] raw) {
+        
+        boolean out = false;
+        if(this.drpcache != null)
+            synchronized(this.drpcache){
+                out = this.drpcache.addRep(nodeSrc, nodeDst, seq_num, ttl, usedPeers, raw);
+            }
+        if(this.drqcache != null)
+            synchronized(this.drqcache){
+                this.drqcache.rmReqwithRep(new ByteArray(nodeDst), new ByteArray(seq_num), nodeSrc);
+            }
+        return out;
+    }
+    
     public LinkedList<InetAddress> getZonePeer(byte[] nodeIdDst) {
         
         ByteArray nodeIdDst_new = new ByteArray(nodeIdDst);
@@ -743,12 +764,12 @@ public class Node {
                 peer = this.pcache.getPeer(nodeIdDst_new);
             }
         //GET OPTIMAL HOP
-        if(peer != null)
+        if(peer != null){
             if(this.topo != null)
                 synchronized(this.topo){
                     out = this.topo.getOptimal(peer);
                 }
-        
+        }
         return out;
     }
 
@@ -758,13 +779,97 @@ public class Node {
         
         if(this.topo != null)
                 synchronized(this.topo){
-                    out = this.topo.getOrientUnic(usedPeers);
+                    out = this.topo.getOrientUnic(usedPeers, position);
                 }
         
         return out;
     }
 
-    
+    public void addPeerCache(byte[] nodeId, Tuple tuple) {
+        
+        ByteArray nodeID = new ByteArray(nodeId);
+        
+        //CHECK CACHE
+        if(this.pcache != null)
+            synchronized(this.pcache){
+                this.pcache.addCachePeer(nodeID, tuple);
+            }
+        
+    }
+
+    public ArrayList<byte[]> getReqCache(byte[] nodeId, boolean mode) {
+        
+        ArrayList<byte[]> out   = null;
+        
+        if(this.drqcache != null)
+            synchronized(this.drqcache){
+                out = this.drqcache.getReq(nodeId, mode);
+            }
+        
+        return out;
+    }
+
+    public ArrayList<byte[]> getRepCache(byte[] nodeId, boolean mode) {
+        
+        ArrayList<byte[]> out   = null;
+        
+        if(this.drpcache != null)
+            synchronized(this.drpcache){
+                out = this.drpcache.getRep(nodeId, mode);
+            }
+        
+        return out;
+    }
+
+    public boolean existsZonePeer(byte[] nodeId) {
+        
+        boolean out = false;
+        ByteArray nodeID = new ByteArray(nodeId);
+        
+        if(this.topo != null)
+                synchronized(this.topo){
+                    out = this.topo.existsPeer(nodeID);
+                }
+        
+        return out;
+    }
+
+    public void gcDataCache() {
+        
+        if(this.drqcache != null)
+            synchronized(this.drqcache){
+                this.drqcache.gcData();
+            }
+        
+        if(this.drpcache != null)
+            synchronized(this.drpcache){
+                this.drpcache.gcData();
+            }
+    }
+
+    public boolean existsDataReply(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+        
+        Boolean out = false;
+        
+        if(this.drpcache != null)
+            synchronized(this.drpcache){
+                out = this.drpcache.exists(nodeIdSrc, nodeIdDst, req_num);
+            }
+        
+        return out;
+    }
+
+    public boolean existsDataRequest(byte[] nodeIdSrc, byte[] nodeIdDst, byte[] req_num) {
+        
+        Boolean out = false;
+        
+        if(this.drpcache != null)
+            synchronized(this.drqcache){
+                out = this.drqcache.exists(nodeIdSrc, nodeIdDst, req_num);
+            }
+        
+        return out;
+    }
 
 
     

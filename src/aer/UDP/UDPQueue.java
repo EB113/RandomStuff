@@ -44,7 +44,7 @@ public class UDPQueue implements Runnable{
                 
                 if(tuple != null) {
                     this.dp = new DatagramPacket((byte[])tuple.x, ((byte[])tuple.x).length, (InetAddress)tuple.y, 9999);
-                    System.out.println("<---: " + Crypto.toHex((byte[])tuple.x));
+                    //System.out.println("<---: " + Crypto.toHex((byte[])tuple.x));
                     
                     try {
                         if(this.dp != null) this.ds.send(dp);

@@ -17,6 +17,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -132,7 +133,7 @@ public class ListenerTCP implements Runnable{
                                                     usedPeers.push(addr);
 
                                                     //ADD QUEUE
-                                                    this.control.pushQueueUDP(new Tuple(req_pdu, addr));
+                                                    if(addr != null)    this.control.pushQueueUDP(new Tuple(req_pdu, addr));
                                                 }
                                             }
                                             
@@ -151,9 +152,8 @@ public class ListenerTCP implements Runnable{
                                                 {
                                                     //ADD REQUEST TO CACHE
                                                     usedPeers.push(addr);
-
                                                     //ADD QUEUE
-                                                    this.control.pushQueueUDP(new Tuple(req_pdu, addr));
+                                                    if(addr != null)    this.control.pushQueueUDP(new Tuple(req_pdu, addr));
                                                 }
                                             }
                                             
@@ -174,7 +174,7 @@ public class ListenerTCP implements Runnable{
                                                     usedPeers.push(addr);
 
                                                     //ADD QUEUE
-                                                    this.control.pushQueueUDP(new Tuple(req_pdu, addr));
+                                                    if(addr != null)    this.control.pushQueueUDP(new Tuple(req_pdu, addr));
                                                 }
                                             }
                                             
@@ -183,7 +183,7 @@ public class ListenerTCP implements Runnable{
                                         //MULTICAST REQUEST
                                         case 3:
                                             used = true;
-                                            this.control.pushQueueUDP(new Tuple(req_pdu, (InetAddress)(InetAddress.getByName("FF02::1")))); 
+                                            this.control.pushQueueUDP(new Tuple(req_pdu, InetAddress.getByName("FF02::1"))); 
                                             break;
                                         default:
                                             break;
@@ -191,7 +191,7 @@ public class ListenerTCP implements Runnable{
                                     if(!used) continue;
                                     
                                     //WAIT REPLY
-                                    coms = this.control.popQueueTCP(new ByteArray(id.getReqNum()), this.id.getPubKey());
+                                    coms = this.control.popQueueTCP(new ByteArray(seq_num), this.id.getPubKey());
                                     Object obj = null;
                                     if(coms != null){
                                         try {
@@ -201,7 +201,6 @@ public class ListenerTCP implements Runnable{
                                                break;
                                             }
                                         } catch (InterruptedException ex1) {
-                                            System.out.println("TIMEOUT!");
                                         }
                                     }
                                 
