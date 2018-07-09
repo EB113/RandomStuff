@@ -1,5 +1,5 @@
 # VANETNet
-Simple implementation of a mixture of VANET Routing Protocols.
+Simple implementation of a mixture of VANET Routing Protocols(WIP).
 
 Cryptography library used: Bouncy Castle.
 
